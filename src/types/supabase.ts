@@ -57,6 +57,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          provider_type: string | null
           slug: string
           updated_at: string
         }
@@ -69,6 +70,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          provider_type?: string | null
           slug: string
           updated_at?: string
         }
@@ -81,6 +83,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          provider_type?: string | null
           slug?: string
           updated_at?: string
         }
