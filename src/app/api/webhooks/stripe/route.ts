@@ -2,13 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { constructWebhookEvent, getActionsLimitForPrice, getPlanByPriceId } from '@/lib/services/stripe';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Use service role client for webhook handling
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Lazy initialization to avoid build-time errors when env vars are not available
+let getSupabaseAdmin()Client: SupabaseClient | null = null;
+
+function getSupabaseAdmin(): SupabaseClient {
+  if (!getSupabaseAdmin()Client) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+    getSupabaseAdmin()Client = createClient(supabaseUrl, serviceRoleKey);
+  }
+  return getSupabaseAdmin()Client;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -95,7 +104,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   console.log(`Checkout completed for user ${userId}, subscription: ${subscriptionId}`);
 
   // First update with basic info
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from('profiles')
     .update({
       stripe_customer_id: customerId,
@@ -122,7 +131,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
   
   if (!userId) {
     // Try to find user by customer ID
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await getSupabaseAdmin()
       .from('profiles')
       .select('id')
       .eq('stripe_customer_id', subscription.customer as string)
@@ -153,7 +162,7 @@ async function updateUserSubscription(
 
   const subData = subscription as any;
   
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from('profiles')
     .update({
       stripe_subscription_id: subscription.id,
@@ -170,7 +179,7 @@ async function updateUserSubscription(
   const periodStart = subData.current_period_start ? new Date(subData.current_period_start * 1000) : new Date();
   const periodEnd = subData.current_period_end ? new Date(subData.current_period_end * 1000) : new Date();
 
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from('action_usage')
     .upsert(
       {
@@ -190,7 +199,7 @@ async function updateUserSubscription(
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  const { data: profile } = await supabaseAdmin
+  const { data: profile } = await getSupabaseAdmin()
     .from('profiles')
     .select('id')
     .eq('stripe_subscription_id', subscription.id)
@@ -201,7 +210,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     return;
   }
 
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from('profiles')
     .update({
       subscription_status: 'cancelled',
@@ -219,7 +228,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   
   if (!subscriptionId) return;
 
-  const { data: profile } = await supabaseAdmin
+  const { data: profile } = await getSupabaseAdmin()
     .from('profiles')
     .select('id')
     .eq('stripe_subscription_id', subscriptionId)
@@ -234,7 +243,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const priceId = invoiceData.lines?.data?.[0]?.price?.id;
   const actionsLimit = priceId ? getActionsLimitForPrice(priceId) : 0;
 
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from('action_usage')
     .upsert({
       user_id: profile.id,
@@ -255,7 +264,7 @@ async function handleInvoiceFailed(invoice: Stripe.Invoice) {
   
   if (!subscriptionId) return;
 
-  const { data: profile } = await supabaseAdmin
+  const { data: profile } = await getSupabaseAdmin()
     .from('profiles')
     .select('id')
     .eq('stripe_subscription_id', subscriptionId)
@@ -263,7 +272,7 @@ async function handleInvoiceFailed(invoice: Stripe.Invoice) {
 
   if (!profile) return;
 
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from('profiles')
     .update({
       subscription_status: 'past_due',
