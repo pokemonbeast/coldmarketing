@@ -456,7 +456,11 @@ export default function AdminTestingPage() {
                       <span className="text-orange-400">Apify Scraper</span>
                       <span className="text-gray-600">•</span>
                       <span className="text-gray-500 font-mono">
-                        {(selectedProviderData.config as Record<string, unknown>)?.actor_id || "No actor"}
+                        {(() => {
+                          const config = selectedProviderData.config as Record<string, unknown> | null;
+                          const actorId = config?.actor_id;
+                          return actorId ? String(actorId) : "No actor";
+                        })()}
                       </span>
                     </>
                   ) : (
