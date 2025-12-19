@@ -3,10 +3,28 @@ import { STRIPE_PLANS, type StripePlan } from '@/types/database';
 
 export { STRIPE_PLANS };
 
-// Initialize Stripe with the secret key
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+// Lazy initialization to avoid build-time errors when API key is not available
+let stripeClient: Stripe | null = null;
 
-export { stripe };
+function getStripe(): Stripe {
+  if (!stripeClient) {
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (!secretKey) {
+      throw new Error('STRIPE_SECRET_KEY environment variable is not set');
+    }
+    stripeClient = new Stripe(secretKey);
+  }
+  return stripeClient;
+}
+
+// For backward compatibility, export stripe as a getter
+export const stripe = {
+  get customers() { return getStripe().customers; },
+  get subscriptions() { return getStripe().subscriptions; },
+  get checkout() { return getStripe().checkout; },
+  get billingPortal() { return getStripe().billingPortal; },
+  get webhooks() { return getStripe().webhooks; },
+};
 
 /**
  * Get a plan by its price ID
