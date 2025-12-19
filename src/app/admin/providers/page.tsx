@@ -17,7 +17,7 @@ import {
   Map,
   Server,
 } from "lucide-react";
-import type { ApiProvider, TablesInsert } from "@/types/database";
+import type { ApiProvider, TablesInsert, Json } from "@/types/database";
 
 type ProviderType = "smm_panel" | "apify";
 
@@ -150,13 +150,13 @@ export default function AdminProvidersPage() {
     const supabase = createClient();
 
     // Parse config JSON
-    let parsedConfig: Record<string, unknown> = {};
+    let parsedConfig: Json = {};
     try {
       const inputConfig = JSON.parse(formData.config || "{}");
       parsedConfig = {
         actor_id: formData.actor_id || undefined,
         default_input: inputConfig,
-      };
+      } as Json;
     } catch {
       alert("Invalid JSON in config");
       setSaving(false);
