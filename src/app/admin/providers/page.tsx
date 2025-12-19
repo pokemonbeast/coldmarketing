@@ -330,7 +330,11 @@ export default function AdminProvidersPage() {
                     <div className="flex items-center gap-2 text-sm">
                       <span className="text-gray-500">Actor ID:</span>
                       <span className="text-orange-400 font-mono text-xs">
-                        {(provider.config as Record<string, unknown>)?.actor_id || "Not set"}
+                        {(() => {
+                          const config = provider.config as Record<string, unknown> | null;
+                          const actorId = config?.actor_id;
+                          return actorId ? String(actorId) : "Not set";
+                        })()}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
