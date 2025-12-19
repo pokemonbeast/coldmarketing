@@ -1,11 +1,22 @@
-import { GoogleGenerativeAI, GenerativeModel, EmbedContentResponse } from '@google/generative-ai';
-
-// Initialize the Google AI client
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '');
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Models
 const EMBEDDING_MODEL = 'text-embedding-004';
 const GENERATION_MODEL = 'gemini-1.5-flash';
+
+// Lazy initialization to avoid build-time errors when API key is not available
+let genAI: GoogleGenerativeAI | null = null;
+
+function getGenAI(): GoogleGenerativeAI {
+  if (!genAI) {
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GOOGLE_AI_API_KEY environment variable is not set');
+    }
+    genAI = new GoogleGenerativeAI(apiKey);
+  }
+  return genAI;
+}
 
 /**
  * Generate embeddings for text using Google's text-embedding-004 model
@@ -13,7 +24,7 @@ const GENERATION_MODEL = 'gemini-1.5-flash';
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
   try {
-    const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL });
+    const model = getGenAI().getGenerativeModel({ model: EMBEDDING_MODEL });
     const result = await model.embedContent(text);
     return result.embedding.values;
   } catch (error) {
@@ -27,7 +38,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
  */
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   try {
-    const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL });
+    const model = getGenAI().getGenerativeModel({ model: EMBEDDING_MODEL });
     const results = await Promise.all(
       texts.map(text => model.embedContent(text))
     );
@@ -69,7 +80,7 @@ export async function generateComment(
     style?: 'helpful' | 'engaging' | 'authoritative' | 'casual';
   }
 ): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: GENERATION_MODEL });
+  const model = getGenAI().getGenerativeModel({ model: GENERATION_MODEL });
   
   const maxLength = options?.maxLength || 300;
   const style = options?.style || 'helpful';
@@ -217,7 +228,7 @@ export async function generateHashtags(
   platform: 'reddit' | 'instagram' | 'tiktok' | 'twitter' | 'linkedin',
   count: number = 10
 ): Promise<string[]> {
-  const model = genAI.getGenerativeModel({ model: GENERATION_MODEL });
+  const model = getGenAI().getGenerativeModel({ model: GENERATION_MODEL });
   
   const prompt = `Generate ${count} highly relevant ${platform} hashtags for this business:
 
@@ -256,7 +267,7 @@ export async function generateSubreddits(
   business: BusinessContext,
   count: number = 20
 ): Promise<string[]> {
-  const model = genAI.getGenerativeModel({ model: GENERATION_MODEL });
+  const model = getGenAI().getGenerativeModel({ model: GENERATION_MODEL });
   
   const prompt = `Suggest ${count} relevant Reddit subreddits where this business could engage with potential customers:
 
@@ -286,6 +297,7 @@ Return ONLY a JSON array of subreddit names, nothing else:`;
     return [];
   }
 }
+
 
 
 
