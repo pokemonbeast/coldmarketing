@@ -5,18 +5,18 @@ import { constructWebhookEvent, getActionsLimitForPrice, getPlanByPriceId } from
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Lazy initialization to avoid build-time errors when env vars are not available
-let getSupabaseAdmin()Client: SupabaseClient | null = null;
+let supabaseAdminClient: SupabaseClient | null = null;
 
 function getSupabaseAdmin(): SupabaseClient {
-  if (!getSupabaseAdmin()Client) {
+  if (!supabaseAdminClient) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!supabaseUrl || !serviceRoleKey) {
       throw new Error('Missing Supabase environment variables');
     }
-    getSupabaseAdmin()Client = createClient(supabaseUrl, serviceRoleKey);
+    supabaseAdminClient = createClient(supabaseUrl, serviceRoleKey);
   }
-  return getSupabaseAdmin()Client;
+  return supabaseAdminClient;
 }
 
 export async function POST(request: NextRequest) {
