@@ -1122,6 +1122,105 @@ export interface ApifyScrapeResult {
   created_at: string;
 }
 
+// Lead Lists - Groups verified leads by type + industry + location
+export interface LeadList {
+  id: string;
+  lead_type: 'business' | 'person';
+  industry: string;
+  city: string;
+  state: string;
+  country_code: string;
+  lead_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadListInsert {
+  id?: string;
+  lead_type: 'business' | 'person';
+  industry: string;
+  city: string;
+  state: string;
+  country_code: string;
+  lead_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Verified Leads - Individual verified email contacts (partitioned by country_code)
+export interface VerifiedLead {
+  id: string;
+  lead_list_id: string;
+  email: string;
+  domain: string;
+  company_name: string | null;
+  lead_type: 'business' | 'person';
+  phone: string | null;
+  website: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  country_code: string;
+  industry: string | null;
+  verification_state: string;
+  verification_data: Record<string, unknown> | null;
+  source_scrape_id: string | null;
+  created_at: string;
+}
+
+export interface VerifiedLeadInsert {
+  id?: string;
+  lead_list_id: string;
+  email: string;
+  domain: string;
+  company_name?: string | null;
+  lead_type?: 'business' | 'person';
+  phone?: string | null;
+  website?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country_code: string;
+  industry?: string | null;
+  verification_state?: string;
+  verification_data?: Record<string, unknown> | null;
+  source_scrape_id?: string | null;
+  created_at?: string;
+}
+
+// Email Verification Queue - Tracks verification jobs for async processing
+export interface EmailVerificationQueue {
+  id: string;
+  scrape_result_id: string;
+  emails_to_verify: Array<{ email: string; domain: string }>;
+  email_count: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  verification_run_id: string | null;
+  verification_dataset_id: string | null;
+  error_message: string | null;
+  created_at: string;
+  processed_at: string | null;
+}
+
+export interface EmailVerificationQueueInsert {
+  id?: string;
+  scrape_result_id: string;
+  emails_to_verify?: Array<{ email: string; domain: string }>;
+  email_count?: number;
+  status?: 'pending' | 'processing' | 'completed' | 'failed';
+  verification_run_id?: string | null;
+  verification_dataset_id?: string | null;
+  error_message?: string | null;
+  created_at?: string;
+  processed_at?: string | null;
+}
+
+// Lead type enum
+export type LeadType = 'business' | 'person';
+
+// Verification status enum
+export type VerificationStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
 // Enum type aliases
 export type PlatformType = Database['public']['Enums']['platform_type']
 export type ScraperProvider = Database['public']['Enums']['scraper_provider']

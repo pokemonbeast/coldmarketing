@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ApifyClient } from "apify-client";
+import { 
+  extractLeadsFromGmbScrape, 
+  type GmbScrapedItem 
+} from "@/lib/services/lead-extraction";
+import { 
+  processAndSaveVerifiedLeads,
+  type EmailVerificationResult,
+} from "@/lib/services/lead-lists";
+
+// Actor ID for GMB scraper that triggers email verification
+const GMB_SCRAPER_ACTOR_ID = "compass/crawler-google-places";
+const EMAIL_VERIFICATION_PROVIDER_SLUG = "email-verification";
 
 export interface ApifyRunResult {
   success: boolean;
@@ -12,6 +24,14 @@ export interface ApifyRunResult {
   usageUsd?: number;
   error?: string;
   timestamp: string;
+  // Email verification results (for GMB scrapes)
+  emailVerification?: {
+    triggered: boolean;
+    totalEmails?: number;
+    deliverableCount?: number;
+    insertedCount?: number;
+    error?: string;
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -130,6 +150,32 @@ export async function POST(request: NextRequest) {
             ...result,
             savedResultId: savedResult?.id,
           } as ApifyRunResult & { savedResultId?: string };
+
+          // Trigger email verification for GMB scrapes
+          if (actorId === GMB_SCRAPER_ACTOR_ID && savedResult?.id) {
+            try {
+              const verificationResult = await triggerEmailVerification(
+                supabase,
+                savedResult.id,
+                items as GmbScrapedItem[],
+                mergedInput
+              );
+              
+              result = {
+                ...result,
+                emailVerification: verificationResult,
+              } as ApifyRunResult & { savedResultId?: string };
+            } catch (verifyError) {
+              console.error("Email verification failed:", verifyError);
+              result = {
+                ...result,
+                emailVerification: {
+                  triggered: false,
+                  error: verifyError instanceof Error ? verifyError.message : "Verification failed",
+                },
+              } as ApifyRunResult & { savedResultId?: string };
+            }
+          }
         }
       }
     } else {
@@ -240,4 +286,144 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+/**
+ * Trigger email verification for GMB scrape results
+ * Extracts emails, verifies them, and saves verified leads
+ */
+async function triggerEmailVerification(
+  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
+  scrapeResultId: string,
+  items: GmbScrapedItem[],
+  inputConfig: Record<string, unknown>
+): Promise<{
+  triggered: boolean;
+  totalEmails?: number;
+  deliverableCount?: number;
+  insertedCount?: number;
+  error?: string;
+}> {
+  // Extract leads from scrape results
+  const defaultIndustry = (inputConfig?.searchStringsArray as string[])?.[0] || "Unknown";
+  const extraction = extractLeadsFromGmbScrape(items, defaultIndustry);
+
+  if (extraction.leads.length === 0) {
+    return {
+      triggered: false,
+      totalEmails: 0,
+      error: "No valid emails found in scrape results",
+    };
+  }
+
+  // Get email verification provider
+  const { data: provider } = await supabase
+    .from("api_providers")
+    .select("*")
+    .eq("slug", EMAIL_VERIFICATION_PROVIDER_SLUG)
+    .eq("is_active", true)
+    .single();
+
+  if (!provider || !provider.api_key_encrypted) {
+    return {
+      triggered: false,
+      totalEmails: extraction.leads.length,
+      error: "Email verification provider not configured or inactive",
+    };
+  }
+
+  const providerConfig = provider.config as { actor_id?: string } | null;
+  const actorId = providerConfig?.actor_id;
+
+  if (!actorId) {
+    return {
+      triggered: false,
+      totalEmails: extraction.leads.length,
+      error: "Email verification actor not configured",
+    };
+  }
+
+  // Create queue entry
+  const { error: queueError } = await supabase
+    .from("email_verification_queue")
+    .insert({
+      scrape_result_id: scrapeResultId,
+      emails_to_verify: extraction.leads.map(l => ({ email: l.email, domain: l.domain })),
+      email_count: extraction.leads.length,
+      status: "processing",
+    });
+
+  if (queueError) {
+    console.error("Failed to create verification queue:", queueError);
+    // Continue anyway - the queue is just for tracking
+  }
+
+  // Call email verification API
+  const client = new ApifyClient({
+    token: provider.api_key_encrypted,
+  });
+
+  const emailList = extraction.leads.map(l => l.email);
+
+  const run = await client.actor(actorId).call(
+    { emailList },
+    { waitSecs: 300 }
+  );
+
+  // Get verification results
+  const { items: verificationItems } = await client.dataset(run.defaultDatasetId).listItems();
+
+  // Map results to our format
+  const verificationResults: EmailVerificationResult[] = verificationItems.map((item: unknown) => {
+    const i = item as Record<string, unknown>;
+    const data = i.data as Record<string, unknown> | undefined;
+    
+    return {
+      email: (data?.email || data?.Email || i.email || "") as string,
+      domain: (i.domain || data?.Domain || "") as string,
+      state: (i.state || "Unknown") as string,
+      data: {
+        Email: (data?.Email || data?.email || "") as string,
+        Domain: (data?.Domain || "") as string,
+        IsValid: (data?.IsValid || false) as boolean,
+        Free: (data?.Free || false) as boolean,
+        Role: (data?.Role || false) as boolean,
+        Disposable: (data?.Disposable || false) as boolean,
+        AcceptAll: (data?.AcceptAll || false) as boolean,
+        ...data,
+      },
+    };
+  });
+
+  // Count deliverable
+  const deliverableCount = verificationResults.filter(
+    r => r.state === "Deliverable" && r.data.IsValid
+  ).length;
+
+  // Save verified leads
+  const saveResult = await processAndSaveVerifiedLeads(
+    supabase,
+    extraction.leads,
+    verificationResults,
+    scrapeResultId
+  );
+
+  // Update queue as completed
+  await supabase
+    .from("email_verification_queue")
+    .update({
+      status: "completed",
+      verification_run_id: run.id,
+      verification_dataset_id: run.defaultDatasetId,
+      processed_at: new Date().toISOString(),
+    })
+    .eq("scrape_result_id", scrapeResultId);
+
+  return {
+    triggered: true,
+    totalEmails: extraction.leads.length,
+    deliverableCount,
+    insertedCount: saveResult.totalInserted,
+  };
+}
+
 
