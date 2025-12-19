@@ -78,3 +78,5 @@ COMMENT ON TABLE apify_scrape_results IS 'Stores results from Apify scraper runs
 COMMENT ON COLUMN apify_scrape_results.results_data IS 'Array of scraped items (e.g., Google Maps places) stored as JSONB';
 COMMENT ON COLUMN apify_scrape_results.input_config IS 'The input configuration used for this scrape run';
 
+
+
