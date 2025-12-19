@@ -9,6 +9,7 @@ import {
   processAndSaveVerifiedLeads,
   type EmailVerificationResult,
 } from "@/lib/services/lead-lists";
+import type { Json } from "@/types/supabase";
 
 // Actor ID for GMB scraper that triggers email verification
 const GMB_SCRAPER_ACTOR_ID = "compass/crawler-google-places";
@@ -133,8 +134,8 @@ export async function POST(request: NextRequest) {
             actor_id: actorId,
             run_id: run.id,
             dataset_id: run.defaultDatasetId,
-            input_config: mergedInput,
-            results_data: items,
+            input_config: mergedInput as Json,
+            results_data: items as Json,
             item_count: items.length,
             usage_usd: result.usageUsd,
             status: run.status,
