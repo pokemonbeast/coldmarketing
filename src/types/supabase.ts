@@ -86,6 +86,48 @@ export type Database = {
         }
         Relationships: []
       }
+      apify_scrape_results: {
+        Row: {
+          id: string
+          provider_id: string
+          actor_id: string
+          run_id: string
+          dataset_id: string
+          input_config: Json
+          results_data: Json
+          item_count: number
+          usage_usd: number | null
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          provider_id: string
+          actor_id: string
+          run_id: string
+          dataset_id: string
+          input_config?: Json
+          results_data?: Json
+          item_count?: number
+          usage_usd?: number | null
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          provider_id?: string
+          actor_id?: string
+          run_id?: string
+          dataset_id?: string
+          input_config?: Json
+          results_data?: Json
+          item_count?: number
+          usage_usd?: number | null
+          status?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       business_platform_configs: {
         Row: {
           auto_approve_override: boolean | null
@@ -638,6 +680,141 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_lists: {
+        Row: {
+          id: string
+          lead_type: string
+          industry: string
+          city: string
+          state: string
+          country_code: string
+          lead_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          lead_type?: string
+          industry: string
+          city: string
+          state: string
+          country_code: string
+          lead_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          lead_type?: string
+          industry?: string
+          city?: string
+          state?: string
+          country_code?: string
+          lead_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      verified_leads: {
+        Row: {
+          id: string
+          lead_list_id: string
+          email: string
+          domain: string
+          company_name: string | null
+          lead_type: string
+          phone: string | null
+          website: string | null
+          address: string | null
+          city: string | null
+          state: string | null
+          country_code: string
+          industry: string | null
+          verification_state: string
+          verification_data: Json | null
+          source_scrape_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          lead_list_id: string
+          email: string
+          domain: string
+          company_name?: string | null
+          lead_type?: string
+          phone?: string | null
+          website?: string | null
+          address?: string | null
+          city?: string | null
+          state?: string | null
+          country_code: string
+          industry?: string | null
+          verification_state?: string
+          verification_data?: Json | null
+          source_scrape_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          lead_list_id?: string
+          email?: string
+          domain?: string
+          company_name?: string | null
+          lead_type?: string
+          phone?: string | null
+          website?: string | null
+          address?: string | null
+          city?: string | null
+          state?: string | null
+          country_code?: string
+          industry?: string | null
+          verification_state?: string
+          verification_data?: Json | null
+          source_scrape_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      email_verification_queue: {
+        Row: {
+          id: string
+          scrape_result_id: string
+          emails_to_verify: Json
+          email_count: number
+          status: string
+          verification_run_id: string | null
+          verification_dataset_id: string | null
+          error_message: string | null
+          created_at: string
+          processed_at: string | null
+        }
+        Insert: {
+          id?: string
+          scrape_result_id: string
+          emails_to_verify?: Json
+          email_count?: number
+          status?: string
+          verification_run_id?: string | null
+          verification_dataset_id?: string | null
+          error_message?: string | null
+          created_at?: string
+          processed_at?: string | null
+        }
+        Update: {
+          id?: string
+          scrape_result_id?: string
+          emails_to_verify?: Json
+          email_count?: number
+          status?: string
+          verification_run_id?: string | null
+          verification_dataset_id?: string | null
+          error_message?: string | null
+          created_at?: string
+          processed_at?: string | null
+        }
+        Relationships: []
+      }
       subscription_plans: {
         Row: {
           created_at: string
@@ -748,6 +925,7 @@ export type Database = {
 
 export type Tables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"]
 export type Enums<T extends keyof Database["public"]["Enums"]> = Database["public"]["Enums"][T]
+
 
 
 
