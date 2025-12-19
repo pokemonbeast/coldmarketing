@@ -17,7 +17,7 @@ import {
   Map,
   Server,
 } from "lucide-react";
-import type { ApiProvider } from "@/types/database";
+import type { ApiProvider, TablesInsert } from "@/types/database";
 
 type ProviderType = "smm_panel" | "apify";
 
@@ -163,7 +163,7 @@ export default function AdminProvidersPage() {
       return;
     }
 
-    const providerData: Record<string, unknown> = {
+    const providerData: TablesInsert<"api_providers"> = {
       name: formData.name,
       slug: formData.slug.toLowerCase().replace(/\s+/g, "-"),
       provider_type: formData.provider_type,
@@ -637,7 +637,7 @@ export default function AdminProvidersPage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={!formData.name || !formData.api_url || saving}
+                disabled={!formData.name || (formData.provider_type === "smm_panel" && !formData.api_url) || saving}
                 className="flex-1 px-4 py-3 rounded-xl btn-primary text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {saving ? (
