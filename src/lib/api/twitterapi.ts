@@ -131,20 +131,29 @@ export class TwitterApiClient {
         };
       }
 
-      const data: TwitterApiLoginResponse = await response.json();
+      const data = await response.json();
+      console.log(`[TwitterAPI] Raw login response:`, JSON.stringify(data, null, 2));
 
-      if (data.status === "success" && data.login_cookie) {
+      // Handle different response formats from twitterapi.io
+      // The API may return login_cookie directly or nested in a data object
+      const loginCookie = data.login_cookie || data.data?.login_cookie || data.cookies || data.data?.cookies;
+      const isSuccess = data.status === "success" || data.success === true || !!loginCookie;
+
+      if (isSuccess && loginCookie) {
         console.log(`[TwitterAPI] Login successful for user: ${user_name}`);
         return {
           success: true,
-          login_cookie: data.login_cookie,
+          login_cookie: loginCookie,
         };
       }
 
       console.error(`[TwitterAPI] Login failed for user: ${user_name}`, data);
+      // Try to extract error message from various possible response formats
+      const errorMsg = data.msg || data.message || data.error || data.data?.message || 
+                       (typeof data === 'string' ? data : JSON.stringify(data));
       return {
         success: false,
-        error: data.msg || "Login failed - no login_cookie returned",
+        error: `Login failed: ${errorMsg}`,
       };
     } catch (error) {
       console.error(`[TwitterAPI] Login exception for user: ${user_name}`, error);
