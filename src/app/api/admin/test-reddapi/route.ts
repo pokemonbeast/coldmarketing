@@ -36,22 +36,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, accountId, providerId, params } = body;
 
-    // Get the API URL from provider if specified, otherwise use default
+    // Get the API URL and API key from provider
     let apiUrl = REDDAPI_DEFAULT_URL;
+    let apiKey = "";
+    
     if (providerId) {
       const { data: provider } = await supabase
         .from("api_providers")
-        .select("api_url")
+        .select("api_url, api_key_encrypted")
         .eq("id", providerId)
         .eq("provider_type", "reddapi")
         .single();
 
-      if (provider?.api_url) {
-        apiUrl = provider.api_url;
+      if (provider) {
+        if (provider.api_url) apiUrl = provider.api_url;
+        if (provider.api_key_encrypted) apiKey = provider.api_key_encrypted;
       }
     }
 
-    const client = createReddapiClient(apiUrl);
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "No API key configured for Reddapi provider. Get your key from RapidAPI." },
+        { status: 400 }
+      );
+    }
+
+    const client = createReddapiClient(apiKey, apiUrl);
 
     switch (action) {
       case "login": {

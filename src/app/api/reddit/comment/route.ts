@@ -56,19 +56,28 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Reddit Comment] Starting comment flow for: ${post_url}`);
 
-    // Get reddapi provider for API URL (optional)
+    // Get reddapi provider for API URL and key
     let apiUrl = REDDAPI_DEFAULT_URL;
-    if (provider_id) {
-      const { data: provider } = await supabase
-        .from("api_providers")
-        .select("api_url")
-        .eq("id", provider_id)
-        .eq("provider_type", "reddapi")
-        .single();
-      
-      if (provider?.api_url) {
-        apiUrl = provider.api_url;
-      }
+    let apiKey = "";
+    
+    // First try the specified provider, then fall back to any active reddapi provider
+    const providerQuery = provider_id 
+      ? supabase.from("api_providers").select("api_url, api_key_encrypted").eq("id", provider_id).eq("provider_type", "reddapi").single()
+      : supabase.from("api_providers").select("api_url, api_key_encrypted").eq("provider_type", "reddapi").eq("is_active", true).limit(1).single();
+    
+    const { data: provider } = await providerQuery;
+    
+    if (provider) {
+      if (provider.api_url) apiUrl = provider.api_url;
+      if (provider.api_key_encrypted) apiKey = provider.api_key_encrypted;
+    }
+    
+    if (!apiKey) {
+      console.error("[Reddit Comment] No API key configured for Reddapi");
+      return NextResponse.json(
+        { error: "No API key configured for Reddapi provider" },
+        { status: 500 }
+      );
     }
 
     // Fetch all active Reddit accounts, ordered by least recently used
@@ -96,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Reddit Comment] Found ${accounts.length} active accounts`);
 
-    const client = createReddapiClient(apiUrl);
+    const client = createReddapiClient(apiKey, apiUrl);
     
     // Iterate through accounts with failover logic
     for (let i = 0; i < accounts.length; i++) {

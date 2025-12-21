@@ -32,17 +32,30 @@ export interface ReddapiCommentParams {
   proxy: string; // Format: hostname:port:user:pass
 }
 
-const DEFAULT_API_URL = "https://reddapi.online";
+const DEFAULT_API_URL = "https://reddapi.p.rapidapi.com";
+const DEFAULT_API_HOST = "reddapi.p.rapidapi.com";
 
 /**
- * Reddapi.online API Client
+ * Reddapi.online API Client (via RapidAPI)
  * Handles Reddit account authentication and commenting via proxy
  */
 export class ReddapiClient {
   private apiUrl: string;
+  private apiKey: string;
+  private apiHost: string;
 
-  constructor(apiUrl: string = DEFAULT_API_URL) {
+  constructor(apiKey: string, apiUrl: string = DEFAULT_API_URL, apiHost: string = DEFAULT_API_HOST) {
     this.apiUrl = apiUrl.replace(/\/$/, ""); // Remove trailing slash
+    this.apiKey = apiKey;
+    this.apiHost = apiHost;
+  }
+
+  private getHeaders(): Record<string, string> {
+    return {
+      "Content-Type": "application/json",
+      "X-RapidAPI-Key": this.apiKey,
+      "X-RapidAPI-Host": this.apiHost,
+    };
   }
 
   /**
@@ -60,9 +73,7 @@ export class ReddapiClient {
     try {
       const response = await fetch(`${this.apiUrl}/api/v2/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
         body: JSON.stringify({
           username,
           password,
@@ -120,9 +131,7 @@ export class ReddapiClient {
     try {
       const response = await fetch(`${this.apiUrl}/api/comment`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(),
         body: JSON.stringify({
           text,
           post_url,
@@ -170,12 +179,13 @@ export class ReddapiClient {
 /**
  * Create a Reddapi client instance
  */
-export function createReddapiClient(apiUrl: string = DEFAULT_API_URL): ReddapiClient {
-  return new ReddapiClient(apiUrl);
+export function createReddapiClient(apiKey: string, apiUrl: string = DEFAULT_API_URL): ReddapiClient {
+  return new ReddapiClient(apiKey, apiUrl);
 }
 
 /**
- * Default export for the API URL
+ * Default exports
  */
 export const REDDAPI_DEFAULT_URL = DEFAULT_API_URL;
+export const REDDAPI_DEFAULT_HOST = DEFAULT_API_HOST;
 
