@@ -133,27 +133,41 @@ export class TwitterApiClient {
 
       const data = await response.json();
       console.log(`[TwitterAPI] Raw login response:`, JSON.stringify(data, null, 2));
+      console.log(`[TwitterAPI] Response keys:`, Object.keys(data));
 
       // Handle different response formats from twitterapi.io
-      // The API may return login_cookie directly or nested in a data object
-      const loginCookie = data.login_cookie || data.data?.login_cookie || data.cookies || data.data?.cookies;
-      const isSuccess = data.status === "success" || data.success === true || !!loginCookie;
+      // The API may return login_cookies (plural), login_cookie, cookies, or nested
+      const loginCookie = data.login_cookies || data.login_cookie || 
+                          data.data?.login_cookies || data.data?.login_cookie || 
+                          data.cookies || data.data?.cookies ||
+                          data.auth_token || data.data?.auth_token;
+      
+      // Check for success indicators
+      const successMsg = data.msg || data.message || "";
+      const isSuccess = data.status === "success" || data.success === true || 
+                        successMsg.toLowerCase().includes("success") || !!loginCookie;
 
       if (isSuccess && loginCookie) {
         console.log(`[TwitterAPI] Login successful for user: ${user_name}`);
         return {
           success: true,
-          login_cookie: loginCookie,
+          login_cookie: typeof loginCookie === 'string' ? loginCookie : JSON.stringify(loginCookie),
+        };
+      }
+
+      // If login was successful but no cookie found, show available fields
+      if (isSuccess && !loginCookie) {
+        console.error(`[TwitterAPI] Login succeeded but no cookie found. Available fields:`, Object.keys(data));
+        return {
+          success: false,
+          error: `Login succeeded but no cookie found. Response fields: ${Object.keys(data).join(', ')}. Full response: ${JSON.stringify(data)}`,
         };
       }
 
       console.error(`[TwitterAPI] Login failed for user: ${user_name}`, data);
-      // Try to extract error message from various possible response formats
-      const errorMsg = data.msg || data.message || data.error || data.data?.message || 
-                       (typeof data === 'string' ? data : JSON.stringify(data));
       return {
         success: false,
-        error: `Login failed: ${errorMsg}`,
+        error: `Login failed: ${JSON.stringify(data)}`,
       };
     } catch (error) {
       console.error(`[TwitterAPI] Login exception for user: ${user_name}`, error);
