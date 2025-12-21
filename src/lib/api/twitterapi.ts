@@ -100,6 +100,15 @@ export class TwitterApiClient {
     const { user_name, email, password, proxy, totp_secret } = params;
 
     console.log(`[TwitterAPI] Attempting login for user: ${user_name}`);
+    console.log(`[TwitterAPI] Request details:`, {
+      url: `${this.apiUrl}/twitter/user_login_v2`,
+      user_name,
+      email,
+      password_length: password?.length || 0,
+      proxy: proxy?.substring(0, 30) + '...',
+      has_totp_secret: !!totp_secret,
+      totp_secret_length: totp_secret?.length || 0,
+    });
 
     try {
       const body: Record<string, string> = {
@@ -112,6 +121,8 @@ export class TwitterApiClient {
       if (totp_secret) {
         body.totp_secret = totp_secret;
       }
+
+      console.log(`[TwitterAPI] Sending body keys:`, Object.keys(body));
 
       const response = await fetch(`${this.apiUrl}/twitter/user_login_v2`, {
         method: "POST",
