@@ -133,41 +133,26 @@ export class TwitterApiClient {
 
       const data = await response.json();
       console.log(`[TwitterAPI] Raw login response:`, JSON.stringify(data, null, 2));
-      console.log(`[TwitterAPI] Response keys:`, Object.keys(data));
 
-      // Handle different response formats from twitterapi.io
-      // The API may return login_cookies (plural), login_cookie, cookies, or nested
-      const loginCookie = data.login_cookies || data.login_cookie || 
-                          data.data?.login_cookies || data.data?.login_cookie || 
-                          data.cookies || data.data?.cookies ||
-                          data.auth_token || data.data?.auth_token;
-      
-      // Check for success indicators
-      const successMsg = data.msg || data.message || "";
-      const isSuccess = data.status === "success" || data.success === true || 
-                        successMsg.toLowerCase().includes("success") || !!loginCookie;
+      // API response format: { login_cookie, status, msg }
+      const loginCookie = data.login_cookie;
+      const status = data.status;
+      const msg = data.msg || "";
 
-      if (isSuccess && loginCookie) {
-        console.log(`[TwitterAPI] Login successful for user: ${user_name}`);
+      // Check if we have a valid login_cookie (not null, not empty string)
+      if (loginCookie && typeof loginCookie === 'string' && loginCookie.trim().length > 0) {
+        console.log(`[TwitterAPI] Login successful for user: ${user_name}, cookie length: ${loginCookie.length}`);
         return {
           success: true,
-          login_cookie: typeof loginCookie === 'string' ? loginCookie : JSON.stringify(loginCookie),
+          login_cookie: loginCookie,
         };
       }
 
-      // If login was successful but no cookie found, show available fields
-      if (isSuccess && !loginCookie) {
-        console.error(`[TwitterAPI] Login succeeded but no cookie found. Available fields:`, Object.keys(data));
-        return {
-          success: false,
-          error: `Login succeeded but no cookie found. Response fields: ${Object.keys(data).join(', ')}. Full response: ${JSON.stringify(data)}`,
-        };
-      }
-
-      console.error(`[TwitterAPI] Login failed for user: ${user_name}`, data);
+      // Login failed - provide detailed error
+      console.error(`[TwitterAPI] Login failed for user: ${user_name}`, { status, msg, hasLoginCookie: !!loginCookie });
       return {
         success: false,
-        error: `Login failed: ${JSON.stringify(data)}`,
+        error: msg || status || "Login failed - no valid login_cookie returned",
       };
     } catch (error) {
       console.error(`[TwitterAPI] Login exception for user: ${user_name}`, error);
