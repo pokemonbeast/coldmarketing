@@ -74,7 +74,27 @@ export class StagehandRedditClient {
 
     await this.stagehand.init();
     this.isInitialized = true;
+    
+    // Log session URLs for debugging
     console.log("[Stagehand] Browser session initialized");
+    console.log("[Stagehand] Session ID:", this.stagehand.browserbaseSessionID);
+    console.log("[Stagehand] Live View URL:", this.stagehand.browserbaseSessionURL);
+    console.log("[Stagehand] Debug URL:", this.stagehand.browserbaseDebugURL);
+  }
+
+  /**
+   * Get session viewing URLs (available after init)
+   */
+  getSessionInfo(): {
+    sessionId?: string;
+    liveViewUrl?: string;
+    debugUrl?: string;
+  } {
+    return {
+      sessionId: this.stagehand?.browserbaseSessionID,
+      liveViewUrl: this.stagehand?.browserbaseSessionURL,
+      debugUrl: this.stagehand?.browserbaseDebugURL,
+    };
   }
 
   /**
@@ -110,6 +130,13 @@ export class StagehandRedditClient {
         return { success: false, error: "No active page available" };
       }
 
+      // Enable Network domain for cookie management
+      try {
+        await page.sendCDP("Network.enable", {});
+      } catch (error) {
+        console.warn("[Stagehand] Network domain may already be enabled:", error);
+      }
+
       // Navigate to Reddit login
       await page.goto("https://www.reddit.com/login");
       await this.humanDelay();
@@ -141,8 +168,23 @@ export class StagehandRedditClient {
       if (loginCheck.isLoggedIn) {
         console.log(`[Stagehand] Login successful for ${username}`);
         
-        // Note: Cookie extraction may need adjustment based on V3 API
-        // For now, return success without cookies
+        // Get cookies using CDP
+        try {
+          const cookiesResponse = await page.sendCDP<{ cookies: Array<{ name: string; value: string; domain?: string; path?: string }> }>(
+            "Network.getCookies",
+            {}
+          );
+          
+          if (cookiesResponse?.cookies) {
+            const cookieString = cookiesResponse.cookies
+              .map(c => `${c.name}=${c.value}`)
+              .join("; ");
+            return { success: true, cookies: cookieString };
+          }
+        } catch (error) {
+          console.warn("[Stagehand] Failed to get cookies via CDP:", error);
+        }
+        
         return { success: true };
       } else {
         console.log(`[Stagehand] Login may have failed for ${username}`);
@@ -289,21 +331,51 @@ export class StagehandRedditClient {
   }
 
   /**
-   * Restore a session using saved cookies
-   * Note: Cookie restoration may require direct CDP commands in V3
+   * Restore a session using saved cookies via CDP
    */
-  async restoreSession(_cookies: string): Promise<boolean> {
+  async restoreSession(cookies: string): Promise<boolean> {
     if (!this.stagehand) return false;
 
     try {
       const page = this.getPage();
       if (!page) return false;
 
-      // Navigate to Reddit first
+      // Enable Network domain for cookie management
+      try {
+        await page.sendCDP("Network.enable", {});
+      } catch (error) {
+        console.warn("[Stagehand] Network domain may already be enabled:", error);
+      }
+
+      // Parse cookie string into CDP format
+      const cookieObjects = cookies.split("; ").map((cookie) => {
+        const [name, value] = cookie.split("=");
+        return {
+          name: name.trim(),
+          value: value?.trim() || "",
+          domain: ".reddit.com",
+          path: "/",
+          secure: true,
+          httpOnly: false,
+          sameSite: "None" as const,
+        };
+      });
+
+      // Set cookies using CDP before navigation
+      try {
+        for (const cookie of cookieObjects) {
+          await page.sendCDP("Network.setCookie", cookie);
+        }
+        console.log(`[Stagehand] Restored ${cookieObjects.length} cookies`);
+      } catch (error) {
+        console.warn("[Stagehand] Failed to set cookies via CDP:", error);
+      }
+
+      // Navigate to Reddit to verify session
       await page.goto("https://www.reddit.com");
       await this.humanDelay();
 
-      // Check if already logged in (cookies may have persisted in session)
+      // Check if logged in
       const loginCheck = await this.stagehand.extract(
         "Check if there is a user profile menu or avatar visible indicating an active login session",
         z.object({

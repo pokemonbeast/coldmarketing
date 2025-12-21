@@ -18,6 +18,7 @@ import {
   MessageSquare,
   User,
   Twitter,
+  Bot,
 } from "lucide-react";
 import type { ApiProvider } from "@/types/database";
 
@@ -252,6 +253,59 @@ const TWITTERAPI_ACTIONS = [
   },
 ];
 
+// Stagehand Actions (Reddit automation via Browserbase)
+const STAGEHAND_ACTIONS = [
+  {
+    id: "login",
+    name: "Test Login",
+    description: "Login to Reddit account using Stagehand (saves session for next steps)",
+    params: [],
+    requiresAccount: true,
+  },
+  {
+    id: "comment",
+    name: "Post Comment (requires login first)",
+    description: "Post a comment on a Reddit thread using Stagehand automation",
+    params: [
+      { key: "text", label: "Comment Text", type: "textarea", required: true },
+      { key: "post_url", label: "Reddit Post URL", type: "text", required: true },
+    ],
+    requiresAccount: true,
+  },
+  {
+    id: "create_post",
+    name: "Create Post (requires login first)",
+    description: "Create a new post in a subreddit using Stagehand automation",
+    params: [
+      { key: "subreddit", label: "Subreddit (without r/)", type: "text", required: true },
+      { key: "title", label: "Post Title", type: "text", required: true },
+      { key: "body", label: "Post Body", type: "textarea", required: true },
+    ],
+    requiresAccount: true,
+  },
+  {
+    id: "full_flow_comment",
+    name: "Full Flow (Login + Comment)",
+    description: "Complete flow: login and post comment in one step",
+    params: [
+      { key: "text", label: "Comment Text", type: "textarea", required: true },
+      { key: "post_url", label: "Reddit Post URL", type: "text", required: true },
+    ],
+    requiresAccount: true,
+  },
+  {
+    id: "full_flow_post",
+    name: "Full Flow (Login + Create Post)",
+    description: "Complete flow: login and create post in one step",
+    params: [
+      { key: "subreddit", label: "Subreddit (without r/)", type: "text", required: true },
+      { key: "title", label: "Post Title", type: "text", required: true },
+      { key: "body", label: "Post Body", type: "textarea", required: true },
+    ],
+    requiresAccount: true,
+  },
+];
+
 export default function AdminTestingPage() {
   const [providers, setProviders] = useState<ApiProvider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("");
@@ -331,6 +385,7 @@ export default function AdminTestingPage() {
   const isApifyProvider = selectedProviderData?.provider_type === "apify";
   const isReddapiProvider = selectedProviderData?.provider_type === "reddapi";
   const isTwitterapiProvider = selectedProviderData?.provider_type === "twitterapi";
+  const isStagehandProvider = selectedProviderData?.provider_type === "stagehand_reddit";
   
   // Get available actions based on provider type
   const API_ACTIONS = isApifyProvider 
@@ -339,6 +394,8 @@ export default function AdminTestingPage() {
     ? REDDAPI_ACTIONS 
     : isTwitterapiProvider
     ? TWITTERAPI_ACTIONS
+    : isStagehandProvider
+    ? STAGEHAND_ACTIONS
     : SMM_ACTIONS;
   const currentAction = API_ACTIONS.find((a) => a.id === selectedAction);
 
@@ -351,6 +408,8 @@ export default function AdminTestingPage() {
         ? "login"
         : selectedProviderData.provider_type === "twitterapi"
         ? "login"
+        : selectedProviderData.provider_type === "stagehand_reddit"
+        ? "login"
         : "services";
       setSelectedAction(defaultAction);
       setParams({});
@@ -360,8 +419,8 @@ export default function AdminTestingPage() {
       setLoginCookie("");
       setLastTwitterProxy("");
       
-      // Fetch Reddit accounts when reddapi provider is selected
-      if (selectedProviderData.provider_type === "reddapi") {
+      // Fetch Reddit accounts when reddapi or stagehand provider is selected
+      if (selectedProviderData.provider_type === "reddapi" || selectedProviderData.provider_type === "stagehand_reddit") {
         fetchRedditAccounts();
       }
       
@@ -394,6 +453,12 @@ export default function AdminTestingPage() {
       // Handle TwitterAPI actions differently
       if (isTwitterapiProvider) {
         await handleTwitterapiAction();
+        return;
+      }
+
+      // Handle Stagehand actions differently
+      if (isStagehandProvider) {
+        await handleStagehandAction();
         return;
       }
 
@@ -964,6 +1029,243 @@ export default function AdminTestingPage() {
     }
   };
 
+  const handleStagehandAction = async () => {
+    try {
+      const selectedAccountData = redditAccounts.find(a => a.id === selectedRedditAccount);
+      
+      if (selectedAction === "login") {
+        // Test login - we'll use a simple comment endpoint but with a test URL
+        // The actual login happens inside the endpoint
+        if (!selectedRedditAccount) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please select a Reddit account",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        // Use comment endpoint which will login first
+        // We'll use a test post URL that won't actually post (or use a real test post)
+        const response = await fetch("/api/stagehand/comment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: "Test login comment",
+            post_url: "https://www.reddit.com/r/test/comments/test/", // Test URL
+            account_id: selectedRedditAccount,
+            provider_id: selectedProvider,
+          }),
+        });
+
+        const data = await response.json();
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: {
+            message: data.success ? "Login successful - cookies saved" : "Login failed",
+            account_used: data.account_used,
+            elapsed_ms: data.elapsed_ms,
+            error: data.error,
+          },
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Refresh accounts to see updated failure counts and cookies
+        fetchRedditAccounts();
+      } else if (selectedAction === "comment") {
+        // Post comment (requires login first)
+        if (!selectedRedditAccount) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please select a Reddit account",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!params.text || !params.post_url) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Comment text and post URL are required",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const response = await fetch("/api/stagehand/comment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: params.text,
+            post_url: params.post_url,
+            account_id: selectedRedditAccount,
+            provider_id: selectedProvider,
+          }),
+        });
+
+        const data = await response.json();
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: data,
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Refresh accounts to see updated failure counts
+        fetchRedditAccounts();
+      } else if (selectedAction === "create_post") {
+        // Create post (requires login first)
+        if (!selectedRedditAccount) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please select a Reddit account",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!params.subreddit || !params.title || !params.body) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Subreddit, title, and body are required",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const response = await fetch("/api/stagehand/post", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subreddit: params.subreddit,
+            title: params.title,
+            body: params.body,
+            account_id: selectedRedditAccount,
+            provider_id: selectedProvider,
+          }),
+        });
+
+        const data = await response.json();
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: data,
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Refresh accounts to see updated failure counts
+        fetchRedditAccounts();
+      } else if (selectedAction === "full_flow_comment") {
+        // Full flow: login + comment
+        if (!selectedRedditAccount) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please select a Reddit account",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!params.text || !params.post_url) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Comment text and post URL are required",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const response = await fetch("/api/stagehand/comment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: params.text,
+            post_url: params.post_url,
+            account_id: selectedRedditAccount,
+            provider_id: selectedProvider,
+          }),
+        });
+
+        const data = await response.json();
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: data,
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Refresh accounts to see updated failure counts
+        fetchRedditAccounts();
+      } else if (selectedAction === "full_flow_post") {
+        // Full flow: login + create post
+        if (!selectedRedditAccount) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please select a Reddit account",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!params.subreddit || !params.title || !params.body) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Subreddit, title, and body are required",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const response = await fetch("/api/stagehand/post", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subreddit: params.subreddit,
+            title: params.title,
+            body: params.body,
+            account_id: selectedRedditAccount,
+            provider_id: selectedProvider,
+          }),
+        });
+
+        const data = await response.json();
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: data,
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Refresh accounts to see updated failure counts
+        fetchRedditAccounts();
+      }
+    } catch (error) {
+      setResult({
+        success: false,
+        action: selectedAction,
+        error: error instanceof Error ? error.message : "Request failed",
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const copyResult = () => {
     if (result) {
       navigator.clipboard.writeText(JSON.stringify(result, null, 2));
@@ -1108,11 +1410,12 @@ export default function AdminTestingPage() {
               )}
             </div>
 
-            {/* Reddit Account selector (for Reddapi) */}
-            {isReddapiProvider && (selectedAction === "login" || selectedAction === "full_flow") && (
+            {/* Reddit Account selector (for Reddapi and Stagehand) */}
+            {((isReddapiProvider && (selectedAction === "login" || selectedAction === "full_flow")) || 
+             (isStagehandProvider && (selectedAction === "login" || selectedAction === "comment" || selectedAction === "create_post" || selectedAction === "full_flow_comment" || selectedAction === "full_flow_post"))) && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                  <User className="w-4 h-4 text-red-400" />
+                  <User className={`w-4 h-4 ${isStagehandProvider ? "text-purple-400" : "text-red-400"}`} />
                   Reddit Account
                 </label>
                 <div className="relative">
@@ -1429,6 +1732,65 @@ export default function AdminTestingPage() {
                         Showing first 5 of {(result.result as { totalItems: number }).totalItems} results. Full data saved to database.
                       </p>
                     )}
+                  </div>
+                )}
+
+                {/* Stagehand session info - show for both success and error */}
+                {isStagehandProvider && (
+                  (typeof result.result === "object" && result.result !== null && "session" in result.result) ||
+                  (result.error && typeof result.error === "object" && "session" in (result.error as Record<string, unknown>))
+                ) && (
+                  <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 space-y-3">
+                    <p className="text-purple-400 text-sm font-medium flex items-center gap-2">
+                      <Bot className="w-4 h-4" />
+                      Browserbase Session
+                    </p>
+                    {(() => {
+                      // Try to get session from result or error
+                      const resultObj = result.result as { session?: { sessionId?: string; liveViewUrl?: string; debugUrl?: string } } | null;
+                      const session = resultObj?.session;
+                      return session ? (
+                        <div className="space-y-2">
+                          {session.sessionId && (
+                            <p className="text-gray-400 text-xs font-mono">
+                              Session ID: {session.sessionId}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            {session.liveViewUrl && (
+                              <a
+                                href={session.liveViewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-300 text-xs font-medium hover:bg-purple-500/30 transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                Live View
+                              </a>
+                            )}
+                            {session.debugUrl && (
+                              <a
+                                href={session.debugUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-700/50 text-gray-300 text-xs font-medium hover:bg-slate-700 transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                </svg>
+                                Debug View
+                              </a>
+                            )}
+                          </div>
+                          <p className="text-gray-500 text-xs">
+                            Click &quot;Live View&quot; to watch the browser session in real-time
+                          </p>
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 )}
               </div>

@@ -141,12 +141,16 @@ export async function POST(request: NextRequest) {
 
     try {
       await client.init();
+      
+      // Get session info for live viewing
+      const sessionInfo = client.getSessionInfo();
+      console.log(`[Stagehand Comment] Live view: ${sessionInfo.liveViewUrl}`);
 
       // Check timeout
       if (Date.now() - startTime >= TIMEOUT_MS) {
         await client.close();
         return NextResponse.json(
-          { error: "Timeout during initialization" },
+          { error: "Timeout during initialization", session: sessionInfo },
           { status: 504 }
         );
       }
@@ -183,12 +187,13 @@ export async function POST(request: NextRequest) {
               error: "Login failed",
               details: loginResult.error,
               account: redditAccount.username,
+              session: sessionInfo,
             },
             { status: 401 }
           );
         }
 
-        // Save new cookies
+        // Save new cookies if available
         if (loginResult.cookies) {
           await supabase
             .from("reddit_accounts")
@@ -204,7 +209,7 @@ export async function POST(request: NextRequest) {
       if (Date.now() - startTime >= TIMEOUT_MS) {
         await client.close();
         return NextResponse.json(
-          { error: "Timeout after login" },
+          { error: "Timeout after login", session: sessionInfo },
           { status: 504 }
         );
       }
@@ -232,6 +237,7 @@ export async function POST(request: NextRequest) {
             error: commentResult.error,
             account_used: redditAccount.username,
             elapsed_ms: Date.now() - startTime,
+            session: sessionInfo,
           },
           { status: 422 }
         );
@@ -241,6 +247,7 @@ export async function POST(request: NextRequest) {
         success: true,
         account_used: redditAccount.username,
         elapsed_ms: Date.now() - startTime,
+        session: sessionInfo,
       });
     } catch (error) {
       // Ensure browser is closed on error
