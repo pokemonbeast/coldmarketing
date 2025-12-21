@@ -3,7 +3,9 @@
 
 export interface ReddapiLoginResponse {
   success: boolean;
-  bearer?: string;
+  cookies?: string;      // RapidAPI returns cookies
+  token_v2?: string;     // RapidAPI returns token_v2
+  bearer?: string;       // Legacy support
   error?: string;
   message?: string;
 }
@@ -28,8 +30,8 @@ export interface ReddapiLoginParams {
 export interface ReddapiCommentParams {
   text: string;
   post_url: string;
-  bearer: string;
-  proxy: string; // Format: hostname:port:user:pass
+  bearer: string;         // token_v2 from login response (used as bearer)
+  proxy: string;          // Format: hostname:port:user:pass or ip:port
 }
 
 const DEFAULT_API_URL = "https://reddapi.p.rapidapi.com";
@@ -60,24 +62,25 @@ export class ReddapiClient {
 
   /**
    * Login to Reddit account via reddapi
-   * POST /api/v2/login
+   * POST /api/login (RapidAPI endpoint)
    * 
    * @param params - Login parameters (username, password, proxy)
-   * @returns Login response with bearer token on success
+   * @returns Login response with cookies and token_v2 on success
    */
   async login(params: ReddapiLoginParams): Promise<ReddapiLoginResponse> {
     const { username, password, proxy } = params;
 
     console.log(`[Reddapi] Attempting login for user: ${username}`);
+    console.log(`[Reddapi] Request URL: ${this.apiUrl}/api/login`);
 
     try {
-      const response = await fetch(`${this.apiUrl}/api/v2/login`, {
+      const response = await fetch(`${this.apiUrl}/api/login`, {
         method: "POST",
         headers: this.getHeaders(),
         body: JSON.stringify({
           username,
           password,
-          proxy, // Pass as string: hostname:port:user:pass
+          proxy, // Pass as string: hostname:port:user:pass or ip:port
         }),
       });
 
@@ -91,13 +94,15 @@ export class ReddapiClient {
       }
 
       const data = await response.json();
+      console.log(`[Reddapi] Raw login response:`, JSON.stringify(data, null, 2));
       
-      // Check for bearer token in response
-      if (data.bearer) {
+      // RapidAPI returns: cookies (string), token_v2 (string)
+      if (data.cookies || data.token_v2) {
         console.log(`[Reddapi] Login successful for user: ${username}`);
         return {
           success: true,
-          bearer: data.bearer,
+          cookies: data.cookies,
+          token_v2: data.token_v2,
         };
       }
 
@@ -105,7 +110,7 @@ export class ReddapiClient {
       console.error(`[Reddapi] Login failed for user: ${username}`, data);
       return {
         success: false,
-        error: data.error || data.message || "Login failed - no bearer token returned",
+        error: data.error || data.message || "Login failed - no cookies/token returned",
       };
     } catch (error) {
       console.error(`[Reddapi] Login exception for user: ${username}`, error);
@@ -120,13 +125,14 @@ export class ReddapiClient {
    * Post a comment to a Reddit post
    * POST /api/comment
    * 
-   * @param params - Comment parameters (text, post_url, bearer, proxy)
+   * @param params - Comment parameters (text, post_url, cookies, proxy)
    * @returns Comment response with result data on success
    */
   async comment(params: ReddapiCommentParams): Promise<ReddapiCommentResponse> {
     const { text, post_url, bearer, proxy } = params;
 
     console.log(`[Reddapi] Posting comment to: ${post_url}`);
+    console.log(`[Reddapi] Request URL: ${this.apiUrl}/api/comment`);
 
     try {
       const response = await fetch(`${this.apiUrl}/api/comment`, {
@@ -135,8 +141,8 @@ export class ReddapiClient {
         body: JSON.stringify({
           text,
           post_url,
-          bearer,
-          proxy, // Pass as string: hostname:port:user:pass
+          bearer,   // Use token_v2 from login as bearer
+          proxy,    // Pass as string: hostname:port:user:pass or ip:port
         }),
       });
 

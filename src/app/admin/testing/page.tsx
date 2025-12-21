@@ -175,19 +175,19 @@ const REDDAPI_ACTIONS = [
   {
     id: "login",
     name: "Test Login",
-    description: "Test login with a Reddit account (saves bearer token for next step)",
+    description: "Test login with a Reddit account (saves token_v2 for next step)",
     params: [],
     requiresAccount: true,
   },
   {
     id: "comment",
     name: "Test Comment (requires login first)",
-    description: "Post a comment using bearer token from login step",
+    description: "Post a comment using token_v2 (bearer) from login step",
     params: [
       { key: "text", label: "Comment Text", type: "textarea", required: true },
       { key: "post_url", label: "Reddit Post URL", type: "text", required: true },
     ],
-    requiresBearer: true,
+    requiresToken: true,
   },
   {
     id: "full_flow",
@@ -265,7 +265,7 @@ export default function AdminTestingPage() {
   // Reddapi-specific state
   const [redditAccounts, setRedditAccounts] = useState<RedditAccountForTesting[]>([]);
   const [selectedRedditAccount, setSelectedRedditAccount] = useState<string>("");
-  const [bearerToken, setBearerToken] = useState<string>("");
+  const [redditToken, setRedditToken] = useState<string>("");  // token_v2 used as bearer
   const [lastLoginProxy, setLastLoginProxy] = useState<string>("");
   
   // TwitterAPI-specific state
@@ -355,7 +355,7 @@ export default function AdminTestingPage() {
       setSelectedAction(defaultAction);
       setParams({});
       setResult(null);
-      setBearerToken("");
+      setRedditToken("");
       setLastLoginProxy("");
       setLoginCookie("");
       setLastTwitterProxy("");
@@ -593,9 +593,9 @@ export default function AdminTestingPage() {
 
         const data = await response.json();
         
-        // Store bearer token for next step if successful
-        if (data.success && data.result?.bearer) {
-          setBearerToken(data.result.bearer);
+        // Store token_v2 for next step if successful
+        if (data.success && data.result?.token_v2) {
+          setRedditToken(data.result.token_v2);
           setLastLoginProxy(selectedAccountData?.proxy || "");
         }
 
@@ -604,18 +604,18 @@ export default function AdminTestingPage() {
           action: selectedAction,
           result: data.success ? {
             ...data.result,
-            hint: "Bearer token saved! You can now test commenting.",
+            hint: "Token saved! You can now test commenting.",
           } : data.result,
           error: data.error,
           timestamp: new Date().toISOString(),
         });
       } else if (selectedAction === "comment") {
-        // Test comment with stored bearer token
-        if (!bearerToken || !lastLoginProxy) {
+        // Test comment with stored token_v2 as bearer
+        if (!redditToken || !lastLoginProxy) {
           setResult({
             success: false,
             action: selectedAction,
-            error: "Please run a successful login test first to get a bearer token",
+            error: "Please run a successful login test first to get token_v2",
             timestamp: new Date().toISOString(),
           });
           return;
@@ -640,7 +640,7 @@ export default function AdminTestingPage() {
             params: {
               text: params.text,
               post_url: params.post_url,
-              bearer: bearerToken,
+              bearer: redditToken,  // Use token_v2 as bearer
               proxy: lastLoginProxy,
             },
           }),
@@ -1214,20 +1214,20 @@ export default function AdminTestingPage() {
               </div>
             )}
 
-            {/* Bearer token status for comment action */}
+            {/* Token status for comment action */}
             {isReddapiProvider && selectedAction === "comment" && (
-              <div className={`p-4 rounded-xl space-y-2 ${bearerToken ? "bg-green-500/10 border border-green-500/20" : "bg-amber-500/10 border border-amber-500/20"}`}>
-                <p className={`text-sm font-medium flex items-center gap-2 ${bearerToken ? "text-green-400" : "text-amber-400"}`}>
+              <div className={`p-4 rounded-xl space-y-2 ${redditToken ? "bg-green-500/10 border border-green-500/20" : "bg-amber-500/10 border border-amber-500/20"}`}>
+                <p className={`text-sm font-medium flex items-center gap-2 ${redditToken ? "text-green-400" : "text-amber-400"}`}>
                   <MessageSquare className="w-4 h-4" />
-                  {bearerToken ? "Bearer Token Ready" : "No Bearer Token"}
+                  {redditToken ? "Bearer Token Ready" : "No Bearer Token"}
                 </p>
-                {bearerToken ? (
+                {redditToken ? (
                   <p className="text-xs text-gray-400">
-                    Token from last login is ready. Using proxy: <span className="font-mono">{lastLoginProxy.split(":").slice(0, 2).join(":")}</span>
+                    Token (token_v2) from last login ready. Using proxy: <span className="font-mono">{lastLoginProxy.split(":").slice(0, 2).join(":")}</span>
                   </p>
                 ) : (
                   <p className="text-xs text-gray-400">
-                    Run a &quot;Test Login&quot; first to get a bearer token for commenting.
+                    Run a &quot;Test Login&quot; first to get token_v2 for commenting.
                   </p>
                 )}
               </div>

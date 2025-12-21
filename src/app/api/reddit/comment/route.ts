@@ -10,6 +10,9 @@ interface RedditAccount {
   username: string;
   password: string;
   proxy: string;
+  cookies: string | null;
+  token_v2: string | null;
+  cookies_updated_at: string | null;
   is_active: boolean;
   failure_count: number;
   last_used_at: string | null;
@@ -134,7 +137,7 @@ export async function POST(request: NextRequest) {
         proxy: account.proxy,
       });
 
-      if (!loginResult.success || !loginResult.bearer) {
+      if (!loginResult.success || !loginResult.token_v2) {
         console.log(`[Reddit Comment] Login failed for ${account.username}: ${loginResult.error}`);
         
         // Update failure count
@@ -159,11 +162,21 @@ export async function POST(request: NextRequest) {
 
       console.log(`[Reddit Comment] Login successful for ${account.username}`);
 
+      // Save cookies and token_v2 to database
+      await supabase
+        .from("reddit_accounts")
+        .update({
+          cookies: loginResult.cookies || null,
+          token_v2: loginResult.token_v2,
+          cookies_updated_at: new Date().toISOString(),
+        })
+        .eq("id", account.id);
+
       // Step 2: Post comment with the same proxy
       const commentResult = await client.comment({
         text,
         post_url,
-        bearer: loginResult.bearer,
+        bearer: loginResult.token_v2,  // Use token_v2 as bearer
         proxy: account.proxy,
       });
 

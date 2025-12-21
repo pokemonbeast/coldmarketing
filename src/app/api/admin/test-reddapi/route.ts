@@ -7,6 +7,9 @@ interface RedditAccount {
   username: string;
   password: string;
   proxy: string;
+  cookies: string | null;
+  token_v2: string | null;
+  cookies_updated_at: string | null;
   is_active: boolean;
   failure_count: number;
   last_used_at: string | null;
@@ -96,11 +99,16 @@ export async function POST(request: NextRequest) {
           proxy: typedAccount.proxy,
         });
 
-        if (loginResult.success && loginResult.bearer) {
-          // Reset failure count on successful login
+        if (loginResult.success && (loginResult.cookies || loginResult.token_v2)) {
+          // Save cookies and token_v2 to database, reset failure count
           await supabase
             .from("reddit_accounts")
-            .update({ failure_count: 0 })
+            .update({ 
+              failure_count: 0,
+              cookies: loginResult.cookies || null,
+              token_v2: loginResult.token_v2 || null,
+              cookies_updated_at: new Date().toISOString(),
+            })
             .eq("id", accountId);
 
           return NextResponse.json({
@@ -108,8 +116,9 @@ export async function POST(request: NextRequest) {
             action: "login",
             result: {
               username: typedAccount.username,
-              bearer: loginResult.bearer,
-              message: "Login successful",
+              cookies: loginResult.cookies,
+              token_v2: loginResult.token_v2,
+              message: "Login successful - credentials cached",
             },
             timestamp: new Date().toISOString(),
           });
@@ -139,14 +148,14 @@ export async function POST(request: NextRequest) {
       }
 
       case "comment": {
-        // Test commenting - requires bearer token from prior login
+        // Test commenting - requires bearer (token_v2) from prior login
         const { text, post_url, bearer, proxy } = params || {};
 
         if (!text || !post_url || !bearer || !proxy) {
           return NextResponse.json(
             { 
-              error: "Missing required parameters: text, post_url, bearer, and proxy",
-              hint: "First run a login test to get the bearer token, then use it with the same proxy"
+              error: "Missing required parameters: text, post_url, bearer (token_v2), and proxy",
+              hint: "First run a login test to get the token_v2, then use it as bearer with the same proxy"
             },
             { status: 400 }
           );
@@ -219,7 +228,7 @@ export async function POST(request: NextRequest) {
           error: loginResult.error,
         });
 
-        if (!loginResult.success || !loginResult.bearer) {
+        if (!loginResult.success || !loginResult.token_v2) {
           // Update failure count
           const newFailureCount = (typedAccount.failure_count || 0) + 1;
           await supabase
@@ -234,17 +243,27 @@ export async function POST(request: NextRequest) {
             success: false,
             action: "full_flow",
             steps,
-            error: "Login step failed",
+            error: "Login step failed - no token_v2 returned",
             timestamp: new Date().toISOString(),
           });
         }
+
+        // Save cookies and token_v2 to database
+        await supabase
+          .from("reddit_accounts")
+          .update({
+            cookies: loginResult.cookies || null,
+            token_v2: loginResult.token_v2,
+            cookies_updated_at: new Date().toISOString(),
+          })
+          .eq("id", accountId);
 
         // Step 2: Comment
         console.log(`[Test Reddapi] Full flow - Step 2: Comment on ${post_url}`);
         const commentResult = await client.comment({
           text,
           post_url,
-          bearer: loginResult.bearer,
+          bearer: loginResult.token_v2,  // Use token_v2 as bearer
           proxy: typedAccount.proxy,
         });
 

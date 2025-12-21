@@ -899,6 +899,9 @@ export type Database = {
           username: string
           password: string
           proxy: string
+          cookies: string | null
+          token_v2: string | null
+          cookies_updated_at: string | null
           is_active: boolean | null
           failure_count: number | null
           last_used_at: string | null
@@ -908,6 +911,9 @@ export type Database = {
           username: string
           password: string
           proxy: string
+          cookies?: string | null
+          token_v2?: string | null
+          cookies_updated_at?: string | null
           is_active?: boolean | null
           failure_count?: number | null
           last_used_at?: string | null
@@ -917,6 +923,9 @@ export type Database = {
           username?: string
           password?: string
           proxy?: string
+          cookies?: string | null
+          token_v2?: string | null
+          cookies_updated_at?: string | null
           is_active?: boolean | null
           failure_count?: number | null
           last_used_at?: string | null
