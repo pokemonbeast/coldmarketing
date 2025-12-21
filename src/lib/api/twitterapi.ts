@@ -145,10 +145,10 @@ export class TwitterApiClient {
       const data = await response.json();
       console.log(`[TwitterAPI] Raw login response:`, JSON.stringify(data, null, 2));
 
-      // API response format: { login_cookie, status, msg }
-      const loginCookie = data.login_cookie;
+      // API response format: { login_cookies (plural!), status, message }
+      const loginCookie = data.login_cookies || data.login_cookie; // API returns 'login_cookies' with 's'
       const status = data.status;
-      const msg = data.msg || "";
+      const msg = data.message || data.msg || "";
 
       // Check if status indicates success
       const isStatusSuccess = status === "success" || status === "Success" || 
