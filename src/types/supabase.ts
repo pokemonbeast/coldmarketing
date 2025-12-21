@@ -893,6 +893,78 @@ export type Database = {
         }
         Relationships: []
       }
+      reddit_accounts: {
+        Row: {
+          id: string
+          username: string
+          password: string
+          proxy: string
+          is_active: boolean | null
+          failure_count: number | null
+          last_used_at: string | null
+        }
+        Insert: {
+          id?: string
+          username: string
+          password: string
+          proxy: string
+          is_active?: boolean | null
+          failure_count?: number | null
+          last_used_at?: string | null
+        }
+        Update: {
+          id?: string
+          username?: string
+          password?: string
+          proxy?: string
+          is_active?: boolean | null
+          failure_count?: number | null
+          last_used_at?: string | null
+        }
+        Relationships: []
+      }
+      twitter_accounts: {
+        Row: {
+          id: string
+          username: string
+          email: string
+          password: string
+          proxy: string
+          totp_secret: string | null
+          login_cookie: string | null
+          login_cookie_updated_at: string | null
+          is_active: boolean | null
+          failure_count: number | null
+          last_used_at: string | null
+        }
+        Insert: {
+          id?: string
+          username: string
+          email: string
+          password: string
+          proxy: string
+          totp_secret?: string | null
+          login_cookie?: string | null
+          login_cookie_updated_at?: string | null
+          is_active?: boolean | null
+          failure_count?: number | null
+          last_used_at?: string | null
+        }
+        Update: {
+          id?: string
+          username?: string
+          email?: string
+          password?: string
+          proxy?: string
+          totp_secret?: string | null
+          login_cookie?: string | null
+          login_cookie_updated_at?: string | null
+          is_active?: boolean | null
+          failure_count?: number | null
+          last_used_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
