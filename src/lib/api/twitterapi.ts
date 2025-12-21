@@ -208,6 +208,13 @@ export class TwitterApiClient {
     } = params;
 
     console.log(`[TwitterAPI] Creating tweet: "${tweet_text.substring(0, 50)}..."`);
+    console.log(`[TwitterAPI] Tweet request details:`, {
+      login_cookies_length: login_cookies?.length || 0,
+      login_cookies_preview: login_cookies?.substring(0, 50) + '...',
+      tweet_text_length: tweet_text?.length || 0,
+      proxy: proxy?.substring(0, 30) + '...',
+      has_reply_to: !!reply_to_tweet_id,
+    });
 
     try {
       const body: Record<string, unknown> = {

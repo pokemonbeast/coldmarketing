@@ -115,16 +115,17 @@ export async function POST(request: NextRequest) {
               })
               .eq("id", accountId);
 
-            return NextResponse.json({
-              success: true,
-              action: "login",
-              result: {
-                username: typedAccount.username,
-                login_cookie: loginResult.login_cookie.substring(0, 20) + "...",
-                message: "Login successful - cookie cached",
-              },
-              timestamp: new Date().toISOString(),
-            });
+          return NextResponse.json({
+            success: true,
+            action: "login",
+            result: {
+              username: typedAccount.username,
+              login_cookie: loginResult.login_cookie, // Full cookie for subsequent requests
+              login_cookie_preview: loginResult.login_cookie.substring(0, 30) + "...", // Truncated for display
+              message: "Login successful - cookie cached",
+            },
+            timestamp: new Date().toISOString(),
+          });
           } else {
             // Success status but no cookie - might be account issue or API quirk
             return NextResponse.json({
