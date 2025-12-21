@@ -80,3 +80,4 @@ COMMENT ON COLUMN apify_scrape_results.input_config IS 'The input configuration 
 
 
 
+

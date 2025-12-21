@@ -1330,6 +1330,80 @@ export interface ApifyScrapeResult {
   created_at: string;
 }
 
+// Reddit Accounts - Credentials for automated commenting via reddapi.online
+export interface RedditAccount {
+  id: string;
+  username: string;
+  password: string;
+  proxy: string; // Format: hostname:port:user:pass
+  is_active: boolean;
+  failure_count: number;
+  last_used_at: string | null;
+}
+
+export interface RedditAccountInsert {
+  id?: string;
+  username: string;
+  password: string;
+  proxy: string;
+  is_active?: boolean;
+  failure_count?: number;
+  last_used_at?: string | null;
+}
+
+export interface RedditAccountUpdate {
+  id?: string;
+  username?: string;
+  password?: string;
+  proxy?: string;
+  is_active?: boolean;
+  failure_count?: number;
+  last_used_at?: string | null;
+}
+
+// Twitter Accounts - Credentials for automated tweeting/DMs via twitterapi.io
+export interface TwitterAccount {
+  id: string;
+  username: string;
+  email: string;
+  password: string;
+  proxy: string; // Format: http://username:password@ip:port
+  totp_secret: string | null; // For 2FA accounts
+  login_cookie: string | null; // Cached session cookie
+  login_cookie_updated_at: string | null;
+  is_active: boolean;
+  failure_count: number;
+  last_used_at: string | null;
+}
+
+export interface TwitterAccountInsert {
+  id?: string;
+  username: string;
+  email: string;
+  password: string;
+  proxy: string;
+  totp_secret?: string | null;
+  login_cookie?: string | null;
+  login_cookie_updated_at?: string | null;
+  is_active?: boolean;
+  failure_count?: number;
+  last_used_at?: string | null;
+}
+
+export interface TwitterAccountUpdate {
+  id?: string;
+  username?: string;
+  email?: string;
+  password?: string;
+  proxy?: string;
+  totp_secret?: string | null;
+  login_cookie?: string | null;
+  login_cookie_updated_at?: string | null;
+  is_active?: boolean;
+  failure_count?: number;
+  last_used_at?: string | null;
+}
+
 // Lead Lists - Groups verified leads by type + industry + location
 export interface LeadList {
   id: string;

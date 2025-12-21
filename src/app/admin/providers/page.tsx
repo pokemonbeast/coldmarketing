@@ -16,14 +16,18 @@ import {
   ExternalLink,
   Map,
   Server,
+  MessageSquare,
+  Twitter,
 } from "lucide-react";
 import type { ApiProvider, TablesInsert, Json } from "@/types/database";
 
-type ProviderType = "smm_panel" | "apify";
+type ProviderType = "smm_panel" | "apify" | "reddapi" | "twitterapi";
 
 const PROVIDER_TYPES: { value: ProviderType; label: string; icon: React.ReactNode }[] = [
   { value: "smm_panel", label: "SMM Panel", icon: <Server className="w-4 h-4" /> },
   { value: "apify", label: "Apify Scraper", icon: <Map className="w-4 h-4" /> },
+  { value: "reddapi", label: "Reddapi (Reddit)", icon: <MessageSquare className="w-4 h-4" /> },
+  { value: "twitterapi", label: "TwitterAPI (X)", icon: <Twitter className="w-4 h-4" /> },
 ];
 
 // Default configs for Apify actors
@@ -167,7 +171,15 @@ export default function AdminProvidersPage() {
       name: formData.name,
       slug: formData.slug.toLowerCase().replace(/\s+/g, "-"),
       provider_type: formData.provider_type,
-      api_url: formData.api_url || (formData.provider_type === "apify" ? "https://api.apify.com/v2" : ""),
+      api_url: formData.api_url || (
+        formData.provider_type === "apify" 
+          ? "https://api.apify.com/v2" 
+          : formData.provider_type === "reddapi"
+          ? "https://reddapi.online"
+          : formData.provider_type === "twitterapi"
+          ? "https://api.twitterapi.io"
+          : ""
+      ),
       is_active: formData.is_active,
       description: formData.description,
       config: parsedConfig,
@@ -270,6 +282,14 @@ export default function AdminProvidersPage() {
                         ? provider.is_active
                           ? "bg-orange-500/20"
                           : "bg-gray-500/20"
+                        : provider.provider_type === "reddapi"
+                        ? provider.is_active
+                          ? "bg-red-500/20"
+                          : "bg-gray-500/20"
+                        : provider.provider_type === "twitterapi"
+                        ? provider.is_active
+                          ? "bg-sky-500/20"
+                          : "bg-gray-500/20"
                         : provider.is_active
                         ? "bg-green-500/20"
                         : "bg-gray-500/20"
@@ -279,6 +299,18 @@ export default function AdminProvidersPage() {
                       <Map
                         className={`w-6 h-6 ${
                           provider.is_active ? "text-orange-400" : "text-gray-400"
+                        }`}
+                      />
+                    ) : provider.provider_type === "reddapi" ? (
+                      <MessageSquare
+                        className={`w-6 h-6 ${
+                          provider.is_active ? "text-red-400" : "text-gray-400"
+                        }`}
+                      />
+                    ) : provider.provider_type === "twitterapi" ? (
+                      <Twitter
+                        className={`w-6 h-6 ${
+                          provider.is_active ? "text-sky-400" : "text-gray-400"
                         }`}
                       />
                     ) : (
@@ -298,9 +330,13 @@ export default function AdminProvidersPage() {
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         provider.provider_type === "apify"
                           ? "bg-orange-500/20 text-orange-400"
+                          : provider.provider_type === "reddapi"
+                          ? "bg-red-500/20 text-red-400"
+                          : provider.provider_type === "twitterapi"
+                          ? "bg-sky-500/20 text-sky-400"
                           : "bg-blue-500/20 text-blue-400"
                       }`}>
-                        {provider.provider_type === "apify" ? "Apify" : "SMM"}
+                        {provider.provider_type === "apify" ? "Apify" : provider.provider_type === "reddapi" ? "Reddit" : provider.provider_type === "twitterapi" ? "Twitter" : "SMM"}
                       </span>
                     </div>
                   </div>
@@ -343,6 +379,56 @@ export default function AdminProvidersPage() {
                         {provider.api_key_encrypted
                           ? "••••••••••••"
                           : "Not configured"}
+                      </span>
+                    </div>
+                  </>
+                ) : provider.provider_type === "reddapi" ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500">API URL:</span>
+                      <a
+                        href={provider.api_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-red-400 hover:text-red-300 flex items-center gap-1 truncate"
+                      >
+                        {provider.api_url}
+                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500">Status:</span>
+                      <span className="text-gray-300">
+                        Uses reddit_accounts table for credentials
+                      </span>
+                    </div>
+                  </>
+                ) : provider.provider_type === "twitterapi" ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500">API URL:</span>
+                      <a
+                        href={provider.api_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sky-400 hover:text-sky-300 flex items-center gap-1 truncate"
+                      >
+                        {provider.api_url}
+                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500">API Key:</span>
+                      <span className="text-gray-300">
+                        {provider.api_key_encrypted
+                          ? "••••••••••••"
+                          : "Not configured"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500">Accounts:</span>
+                      <span className="text-gray-300">
+                        Uses twitter_accounts table
                       </span>
                     </div>
                   </>
@@ -447,7 +533,13 @@ export default function AdminProvidersPage() {
                       }
                       className={`flex items-center gap-2 px-4 py-3 rounded-xl border transition-all ${
                         formData.provider_type === type.value
-                          ? "border-blue-500 bg-blue-500/20 text-blue-400"
+                          ? type.value === "apify"
+                            ? "border-orange-500 bg-orange-500/20 text-orange-400"
+                            : type.value === "reddapi"
+                            ? "border-red-500 bg-red-500/20 text-red-400"
+                            : type.value === "twitterapi"
+                            ? "border-sky-500 bg-sky-500/20 text-sky-400"
+                            : "border-blue-500 bg-blue-500/20 text-blue-400"
                           : "border-slate-700 bg-slate-900/50 text-gray-400 hover:border-slate-600"
                       }`}
                     >
@@ -537,39 +629,47 @@ export default function AdminProvidersPage() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">
-                  {formData.provider_type === "apify" ? "API Token" : "API Key"}{" "}
-                  {editingProvider && <span className="text-gray-500">(leave blank to keep existing)</span>}
-                </label>
-                <div className="relative">
-                  <input
-                    type={showApiKey ? "text" : "password"}
-                    value={formData.api_key_encrypted}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        api_key_encrypted: e.target.value,
-                      })
-                    }
-                    placeholder={formData.provider_type === "apify" ? "apify_api_xxxxx..." : "Enter your API key"}
-                    className="w-full px-4 py-3 pr-12 rounded-xl bg-slate-900/50 border border-slate-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                  >
-                    {showApiKey ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
+              {formData.provider_type !== "reddapi" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-300">
+                    {formData.provider_type === "apify" ? "API Token" : formData.provider_type === "twitterapi" ? "X-API-Key" : "API Key"}{" "}
+                    {editingProvider && <span className="text-gray-500">(leave blank to keep existing)</span>}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      value={formData.api_key_encrypted}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          api_key_encrypted: e.target.value,
+                        })
+                      }
+                      placeholder={
+                        formData.provider_type === "apify" 
+                          ? "apify_api_xxxxx..." 
+                          : formData.provider_type === "twitterapi"
+                          ? "Your twitterapi.io API key"
+                          : "Enter your API key"
+                      }
+                      className="w-full px-4 py-3 pr-12 rounded-xl bg-slate-900/50 border border-slate-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                    >
+                      {showApiKey ? (
+                        <EyeOff className="w-5 h-5" />
+                      ) : (
+                        <Eye className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {formData.provider_type === "smm_panel" && (
+              {(formData.provider_type === "smm_panel" || formData.provider_type === "reddapi" || formData.provider_type === "twitterapi") && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-300">
                     API URL
@@ -580,9 +680,25 @@ export default function AdminProvidersPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, api_url: e.target.value })
                     }
-                    placeholder="https://api.example.com/v2"
+                    placeholder={
+                      formData.provider_type === "reddapi" 
+                        ? "https://reddapi.online" 
+                        : formData.provider_type === "twitterapi"
+                        ? "https://api.twitterapi.io"
+                        : "https://api.example.com/v2"
+                    }
                     className="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-slate-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
                   />
+                  {formData.provider_type === "reddapi" && (
+                    <p className="text-xs text-gray-500">
+                      Reddapi uses credentials from the reddit_accounts table. No API key needed here.
+                    </p>
+                  )}
+                  {formData.provider_type === "twitterapi" && (
+                    <p className="text-xs text-gray-500">
+                      TwitterAPI uses credentials from the twitter_accounts table. API key is required for authentication.
+                    </p>
+                  )}
                 </div>
               )}
 

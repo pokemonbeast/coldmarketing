@@ -15,8 +15,34 @@ import {
   RefreshCw,
   Map,
   Server,
+  MessageSquare,
+  User,
+  Twitter,
 } from "lucide-react";
 import type { ApiProvider } from "@/types/database";
+
+interface RedditAccountForTesting {
+  id: string;
+  username: string;
+  is_active: boolean;
+  failure_count: number;
+  last_used_at: string | null;
+  proxy_masked: string;
+  proxy: string;
+}
+
+interface TwitterAccountForTesting {
+  id: string;
+  username: string;
+  email: string;
+  is_active: boolean;
+  failure_count: number;
+  last_used_at: string | null;
+  proxy_masked: string;
+  proxy: string;
+  has_cached_cookie: boolean;
+  login_cookie_updated_at: string | null;
+}
 
 interface TestResult {
   success: boolean;
@@ -144,6 +170,88 @@ const APIFY_ACTIONS = [
   },
 ];
 
+// Reddapi Actions (multi-step flow)
+const REDDAPI_ACTIONS = [
+  {
+    id: "login",
+    name: "Test Login",
+    description: "Test login with a Reddit account (saves bearer token for next step)",
+    params: [],
+    requiresAccount: true,
+  },
+  {
+    id: "comment",
+    name: "Test Comment (requires login first)",
+    description: "Post a comment using bearer token from login step",
+    params: [
+      { key: "text", label: "Comment Text", type: "textarea", required: true },
+      { key: "post_url", label: "Reddit Post URL", type: "text", required: true },
+    ],
+    requiresBearer: true,
+  },
+  {
+    id: "full_flow",
+    name: "Full Flow (Login + Comment)",
+    description: "Complete flow: login to account and post comment in one step",
+    params: [
+      { key: "text", label: "Comment Text", type: "textarea", required: true },
+      { key: "post_url", label: "Reddit Post URL", type: "text", required: true },
+    ],
+    requiresAccount: true,
+  },
+];
+
+// TwitterAPI Actions (multi-step flow)
+const TWITTERAPI_ACTIONS = [
+  {
+    id: "login",
+    name: "Test Login",
+    description: "Test login with a Twitter account (caches login_cookie for next steps)",
+    params: [],
+    requiresAccount: true,
+  },
+  {
+    id: "tweet",
+    name: "Test Tweet (requires login first)",
+    description: "Post a tweet using login_cookie from login step",
+    params: [
+      { key: "tweet_text", label: "Tweet Text", type: "textarea", required: true },
+      { key: "reply_to_tweet_id", label: "Reply to Tweet ID (optional)", type: "text", required: false },
+    ],
+    requiresLoginCookie: true,
+  },
+  {
+    id: "dm",
+    name: "Test DM (requires login first)",
+    description: "Send a DM using login_cookie from login step",
+    params: [
+      { key: "user_id", label: "Target User ID", type: "text", required: true },
+      { key: "text", label: "Message Text", type: "textarea", required: true },
+    ],
+    requiresLoginCookie: true,
+  },
+  {
+    id: "tweet_flow",
+    name: "Full Flow (Login + Tweet)",
+    description: "Complete flow: login and post tweet in one step",
+    params: [
+      { key: "tweet_text", label: "Tweet Text", type: "textarea", required: true },
+      { key: "reply_to_tweet_id", label: "Reply to Tweet ID (optional)", type: "text", required: false },
+    ],
+    requiresAccount: true,
+  },
+  {
+    id: "dm_flow",
+    name: "Full Flow (Login + DM)",
+    description: "Complete flow: login and send DM in one step",
+    params: [
+      { key: "user_id", label: "Target User ID", type: "text", required: true },
+      { key: "text", label: "Message Text", type: "textarea", required: true },
+    ],
+    requiresAccount: true,
+  },
+];
+
 export default function AdminTestingPage() {
   const [providers, setProviders] = useState<ApiProvider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("");
@@ -153,6 +261,18 @@ export default function AdminTestingPage() {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const [copied, setCopied] = useState(false);
+  
+  // Reddapi-specific state
+  const [redditAccounts, setRedditAccounts] = useState<RedditAccountForTesting[]>([]);
+  const [selectedRedditAccount, setSelectedRedditAccount] = useState<string>("");
+  const [bearerToken, setBearerToken] = useState<string>("");
+  const [lastLoginProxy, setLastLoginProxy] = useState<string>("");
+  
+  // TwitterAPI-specific state
+  const [twitterAccounts, setTwitterAccounts] = useState<TwitterAccountForTesting[]>([]);
+  const [selectedTwitterAccount, setSelectedTwitterAccount] = useState<string>("");
+  const [loginCookie, setLoginCookie] = useState<string>("");
+  const [lastTwitterProxy, setLastTwitterProxy] = useState<string>("");
 
   const fetchProviders = async () => {
     setLoading(true);
@@ -172,25 +292,83 @@ export default function AdminTestingPage() {
     setLoading(false);
   };
 
+  const fetchRedditAccounts = async () => {
+    try {
+      const response = await fetch("/api/admin/test-reddapi");
+      const data = await response.json();
+      if (data.success && data.accounts) {
+        setRedditAccounts(data.accounts);
+        if (data.accounts.length > 0) {
+          setSelectedRedditAccount(data.accounts[0].id);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch Reddit accounts:", error);
+    }
+  };
+  
+  const fetchTwitterAccounts = async () => {
+    try {
+      const response = await fetch("/api/admin/test-twitterapi");
+      const data = await response.json();
+      if (data.success && data.accounts) {
+        setTwitterAccounts(data.accounts);
+        if (data.accounts.length > 0) {
+          setSelectedTwitterAccount(data.accounts[0].id);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch Twitter accounts:", error);
+    }
+  };
+
   useEffect(() => {
     fetchProviders();
   }, []);
 
-  // Determine if selected provider is Apify
+  // Determine provider type
   const selectedProviderData = providers.find((p) => p.id === selectedProvider);
   const isApifyProvider = selectedProviderData?.provider_type === "apify";
+  const isReddapiProvider = selectedProviderData?.provider_type === "reddapi";
+  const isTwitterapiProvider = selectedProviderData?.provider_type === "twitterapi";
   
   // Get available actions based on provider type
-  const API_ACTIONS = isApifyProvider ? APIFY_ACTIONS : SMM_ACTIONS;
+  const API_ACTIONS = isApifyProvider 
+    ? APIFY_ACTIONS 
+    : isReddapiProvider 
+    ? REDDAPI_ACTIONS 
+    : isTwitterapiProvider
+    ? TWITTERAPI_ACTIONS
+    : SMM_ACTIONS;
   const currentAction = API_ACTIONS.find((a) => a.id === selectedAction);
 
   // Reset action when provider changes
   useEffect(() => {
     if (selectedProviderData) {
-      const defaultAction = selectedProviderData.provider_type === "apify" ? "run_scraper" : "services";
+      const defaultAction = selectedProviderData.provider_type === "apify" 
+        ? "run_scraper" 
+        : selectedProviderData.provider_type === "reddapi"
+        ? "login"
+        : selectedProviderData.provider_type === "twitterapi"
+        ? "login"
+        : "services";
       setSelectedAction(defaultAction);
       setParams({});
       setResult(null);
+      setBearerToken("");
+      setLastLoginProxy("");
+      setLoginCookie("");
+      setLastTwitterProxy("");
+      
+      // Fetch Reddit accounts when reddapi provider is selected
+      if (selectedProviderData.provider_type === "reddapi") {
+        fetchRedditAccounts();
+      }
+      
+      // Fetch Twitter accounts when twitterapi provider is selected
+      if (selectedProviderData.provider_type === "twitterapi") {
+        fetchTwitterAccounts();
+      }
     }
   }, [selectedProvider, selectedProviderData?.provider_type]);
 
@@ -204,6 +382,18 @@ export default function AdminTestingPage() {
       // Handle Apify actions differently
       if (isApifyProvider) {
         await handleApifyAction();
+        return;
+      }
+
+      // Handle Reddapi actions differently
+      if (isReddapiProvider) {
+        await handleReddapiAction();
+        return;
+      }
+      
+      // Handle TwitterAPI actions differently
+      if (isTwitterapiProvider) {
+        await handleTwitterapiAction();
         return;
       }
 
@@ -375,6 +565,405 @@ export default function AdminTestingPage() {
     }
   };
 
+  const handleReddapiAction = async () => {
+    try {
+      const selectedAccountData = redditAccounts.find(a => a.id === selectedRedditAccount);
+      
+      if (selectedAction === "login") {
+        // Test login
+        if (!selectedRedditAccount) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please select a Reddit account",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const response = await fetch("/api/admin/test-reddapi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "login",
+            accountId: selectedRedditAccount,
+            providerId: selectedProvider,
+          }),
+        });
+
+        const data = await response.json();
+        
+        // Store bearer token for next step if successful
+        if (data.success && data.result?.bearer) {
+          setBearerToken(data.result.bearer);
+          setLastLoginProxy(selectedAccountData?.proxy || "");
+        }
+
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: data.success ? {
+            ...data.result,
+            hint: "Bearer token saved! You can now test commenting.",
+          } : data.result,
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+      } else if (selectedAction === "comment") {
+        // Test comment with stored bearer token
+        if (!bearerToken || !lastLoginProxy) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please run a successful login test first to get a bearer token",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!params.text || !params.post_url) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Comment text and post URL are required",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const response = await fetch("/api/admin/test-reddapi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "comment",
+            providerId: selectedProvider,
+            params: {
+              text: params.text,
+              post_url: params.post_url,
+              bearer: bearerToken,
+              proxy: lastLoginProxy,
+            },
+          }),
+        });
+
+        const data = await response.json();
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: data.result,
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+      } else if (selectedAction === "full_flow") {
+        // Full flow: login + comment
+        if (!selectedRedditAccount) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please select a Reddit account",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!params.text || !params.post_url) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Comment text and post URL are required",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const response = await fetch("/api/admin/test-reddapi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "full_flow",
+            accountId: selectedRedditAccount,
+            providerId: selectedProvider,
+            params: {
+              text: params.text,
+              post_url: params.post_url,
+            },
+          }),
+        });
+
+        const data = await response.json();
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: {
+            steps: data.steps,
+            finalResult: data.result,
+          },
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Refresh accounts to see updated failure counts
+        fetchRedditAccounts();
+      }
+    } catch (error) {
+      setResult({
+        success: false,
+        action: selectedAction,
+        error: error instanceof Error ? error.message : "Request failed",
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+  
+  const handleTwitterapiAction = async () => {
+    try {
+      const selectedAccountData = twitterAccounts.find(a => a.id === selectedTwitterAccount);
+      
+      if (selectedAction === "login") {
+        // Test login
+        if (!selectedTwitterAccount) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please select a Twitter account",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const response = await fetch("/api/admin/test-twitterapi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "login",
+            accountId: selectedTwitterAccount,
+            providerId: selectedProvider,
+          }),
+        });
+
+        const data = await response.json();
+        
+        // Store login cookie for next step if successful
+        if (data.success && data.result?.login_cookie) {
+          setLoginCookie(data.result.login_cookie);
+          setLastTwitterProxy(selectedAccountData?.proxy || "");
+        }
+
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: data.success ? {
+            ...data.result,
+            hint: "Login cookie saved! You can now test tweeting or DMs.",
+          } : data.result,
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+      } else if (selectedAction === "tweet") {
+        // Test tweet with stored login cookie
+        if (!loginCookie || !lastTwitterProxy) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please run a successful login test first to get a login cookie",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!params.tweet_text) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Tweet text is required",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const response = await fetch("/api/admin/test-twitterapi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "tweet",
+            providerId: selectedProvider,
+            params: {
+              tweet_text: params.tweet_text,
+              reply_to_tweet_id: params.reply_to_tweet_id || undefined,
+              login_cookie: loginCookie,
+              proxy: lastTwitterProxy,
+            },
+          }),
+        });
+
+        const data = await response.json();
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: data.result,
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+      } else if (selectedAction === "dm") {
+        // Test DM with stored login cookie
+        if (!loginCookie || !lastTwitterProxy) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please run a successful login test first to get a login cookie",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!params.user_id || !params.text) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "User ID and message text are required",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const response = await fetch("/api/admin/test-twitterapi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "dm",
+            providerId: selectedProvider,
+            params: {
+              user_id: params.user_id,
+              text: params.text,
+              login_cookie: loginCookie,
+              proxy: lastTwitterProxy,
+            },
+          }),
+        });
+
+        const data = await response.json();
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: data.result,
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+      } else if (selectedAction === "tweet_flow") {
+        // Full flow: login + tweet
+        if (!selectedTwitterAccount) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please select a Twitter account",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!params.tweet_text) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Tweet text is required",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const response = await fetch("/api/admin/test-twitterapi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "tweet_flow",
+            accountId: selectedTwitterAccount,
+            providerId: selectedProvider,
+            params: {
+              tweet_text: params.tweet_text,
+              reply_to_tweet_id: params.reply_to_tweet_id || undefined,
+            },
+          }),
+        });
+
+        const data = await response.json();
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: {
+            steps: data.steps,
+            finalResult: data.result,
+          },
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Refresh accounts to see updated failure counts
+        fetchTwitterAccounts();
+      } else if (selectedAction === "dm_flow") {
+        // Full flow: login + DM
+        if (!selectedTwitterAccount) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Please select a Twitter account",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (!params.user_id || !params.text) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "User ID and message text are required",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        const response = await fetch("/api/admin/test-twitterapi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "dm_flow",
+            accountId: selectedTwitterAccount,
+            providerId: selectedProvider,
+            params: {
+              user_id: params.user_id,
+              text: params.text,
+            },
+          }),
+        });
+
+        const data = await response.json();
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: {
+            steps: data.steps,
+            finalResult: data.result,
+          },
+          error: data.error,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Refresh accounts to see updated failure counts
+        fetchTwitterAccounts();
+      }
+    } catch (error) {
+      setResult({
+        success: false,
+        action: selectedAction,
+        error: error instanceof Error ? error.message : "Request failed",
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const copyResult = () => {
     if (result) {
       navigator.clipboard.writeText(JSON.stringify(result, null, 2));
@@ -463,6 +1052,20 @@ export default function AdminTestingPage() {
                         })()}
                       </span>
                     </>
+                  ) : selectedProviderData.provider_type === "reddapi" ? (
+                    <>
+                      <MessageSquare className="w-3 h-3 text-red-400" />
+                      <span className="text-red-400">Reddapi (Reddit)</span>
+                      <span className="text-gray-600">•</span>
+                      <span className="text-gray-500 truncate">{selectedProviderData.api_url}</span>
+                    </>
+                  ) : selectedProviderData.provider_type === "twitterapi" ? (
+                    <>
+                      <Twitter className="w-3 h-3 text-sky-400" />
+                      <span className="text-sky-400">TwitterAPI (X)</span>
+                      <span className="text-gray-600">•</span>
+                      <span className="text-gray-500 truncate">{selectedProviderData.api_url}</span>
+                    </>
                   ) : (
                     <>
                       <Server className="w-3 h-3 text-blue-400" />
@@ -504,6 +1107,131 @@ export default function AdminTestingPage() {
                 </p>
               )}
             </div>
+
+            {/* Reddit Account selector (for Reddapi) */}
+            {isReddapiProvider && (selectedAction === "login" || selectedAction === "full_flow") && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <User className="w-4 h-4 text-red-400" />
+                  Reddit Account
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedRedditAccount}
+                    onChange={(e) => setSelectedRedditAccount(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-slate-700 text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all appearance-none"
+                  >
+                    {redditAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.username} {!account.is_active ? "(disabled)" : ""} 
+                        {account.failure_count > 0 ? `(${account.failure_count} failures)` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
+                </div>
+                {redditAccounts.length === 0 && (
+                  <p className="text-amber-400 text-xs">
+                    No Reddit accounts found. Add accounts to the reddit_accounts table.
+                  </p>
+                )}
+                {selectedRedditAccount && (() => {
+                  const account = redditAccounts.find(a => a.id === selectedRedditAccount);
+                  return account ? (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p>Proxy: <span className="font-mono">{account.proxy_masked}</span></p>
+                      {account.last_used_at && (
+                        <p>Last used: {new Date(account.last_used_at).toLocaleString()}</p>
+                      )}
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            )}
+
+            {/* Twitter Account selector (for TwitterAPI) */}
+            {isTwitterapiProvider && (selectedAction === "login" || selectedAction === "tweet_flow" || selectedAction === "dm_flow") && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <Twitter className="w-4 h-4 text-sky-400" />
+                  Twitter Account
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedTwitterAccount}
+                    onChange={(e) => setSelectedTwitterAccount(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-slate-700 text-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all appearance-none"
+                  >
+                    {twitterAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        @{account.username} {!account.is_active ? "(disabled)" : ""} 
+                        {account.failure_count > 0 ? `(${account.failure_count} failures)` : ""}
+                        {account.has_cached_cookie ? " ✓ cookie" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
+                </div>
+                {twitterAccounts.length === 0 && (
+                  <p className="text-amber-400 text-xs">
+                    No Twitter accounts found. Add accounts to the twitter_accounts table.
+                  </p>
+                )}
+                {selectedTwitterAccount && (() => {
+                  const account = twitterAccounts.find(a => a.id === selectedTwitterAccount);
+                  return account ? (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p>Email: {account.email}</p>
+                      <p>Proxy: <span className="font-mono">{account.proxy_masked}</span></p>
+                      {account.has_cached_cookie && account.login_cookie_updated_at && (
+                        <p className="text-green-400">Cached cookie from: {new Date(account.login_cookie_updated_at).toLocaleString()}</p>
+                      )}
+                      {account.last_used_at && (
+                        <p>Last used: {new Date(account.last_used_at).toLocaleString()}</p>
+                      )}
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            )}
+
+            {/* Login cookie status for tweet/dm action */}
+            {isTwitterapiProvider && (selectedAction === "tweet" || selectedAction === "dm") && (
+              <div className={`p-4 rounded-xl space-y-2 ${loginCookie ? "bg-green-500/10 border border-green-500/20" : "bg-amber-500/10 border border-amber-500/20"}`}>
+                <p className={`text-sm font-medium flex items-center gap-2 ${loginCookie ? "text-green-400" : "text-amber-400"}`}>
+                  <Twitter className="w-4 h-4" />
+                  {loginCookie ? "Login Cookie Ready" : "No Login Cookie"}
+                </p>
+                {loginCookie ? (
+                  <p className="text-xs text-gray-400">
+                    Cookie from last login is ready. Using proxy from login.
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-400">
+                    Run a &quot;Test Login&quot; first to get a login cookie for tweeting/DMs.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Bearer token status for comment action */}
+            {isReddapiProvider && selectedAction === "comment" && (
+              <div className={`p-4 rounded-xl space-y-2 ${bearerToken ? "bg-green-500/10 border border-green-500/20" : "bg-amber-500/10 border border-amber-500/20"}`}>
+                <p className={`text-sm font-medium flex items-center gap-2 ${bearerToken ? "text-green-400" : "text-amber-400"}`}>
+                  <MessageSquare className="w-4 h-4" />
+                  {bearerToken ? "Bearer Token Ready" : "No Bearer Token"}
+                </p>
+                {bearerToken ? (
+                  <p className="text-xs text-gray-400">
+                    Token from last login is ready. Using proxy: <span className="font-mono">{lastLoginProxy.split(":").slice(0, 2).join(":")}</span>
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-400">
+                    Run a &quot;Test Login&quot; first to get a bearer token for commenting.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Dynamic parameters */}
             {currentAction?.params && currentAction.params.length > 0 && (
