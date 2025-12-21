@@ -102,28 +102,42 @@ export async function POST(request: NextRequest) {
           totp_secret: typedAccount.totp_secret || undefined,
         });
 
-        if (loginResult.success && loginResult.login_cookie) {
-          // Cache the login_cookie and reset failure count
-          await supabase
-            .from("twitter_accounts")
-            .update({ 
-              login_cookie: loginResult.login_cookie,
-              login_cookie_updated_at: new Date().toISOString(),
-              failure_count: 0,
-              last_used_at: new Date().toISOString(),
-            })
-            .eq("id", accountId);
+        if (loginResult.success) {
+          if (loginResult.login_cookie && loginResult.login_cookie.trim().length > 0) {
+            // Cache the login_cookie and reset failure count
+            await supabase
+              .from("twitter_accounts")
+              .update({ 
+                login_cookie: loginResult.login_cookie,
+                login_cookie_updated_at: new Date().toISOString(),
+                failure_count: 0,
+                last_used_at: new Date().toISOString(),
+              })
+              .eq("id", accountId);
 
-          return NextResponse.json({
-            success: true,
-            action: "login",
-            result: {
-              username: typedAccount.username,
-              login_cookie: loginResult.login_cookie,
-              message: "Login successful - cookie cached",
-            },
-            timestamp: new Date().toISOString(),
-          });
+            return NextResponse.json({
+              success: true,
+              action: "login",
+              result: {
+                username: typedAccount.username,
+                login_cookie: loginResult.login_cookie.substring(0, 20) + "...",
+                message: "Login successful - cookie cached",
+              },
+              timestamp: new Date().toISOString(),
+            });
+          } else {
+            // Success status but no cookie - might be account issue or API quirk
+            return NextResponse.json({
+              success: true,
+              action: "login",
+              result: {
+                username: typedAccount.username,
+                message: loginResult.message || "Login status is success but no cookie returned",
+                warning: "No login_cookie in response - account may need verification or 2FA",
+              },
+              timestamp: new Date().toISOString(),
+            });
+          }
         }
 
         // Increment failure count on failed login

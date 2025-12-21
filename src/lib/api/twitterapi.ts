@@ -139,12 +139,26 @@ export class TwitterApiClient {
       const status = data.status;
       const msg = data.msg || "";
 
+      // Check if status indicates success
+      const isStatusSuccess = status === "success" || status === "Success" || 
+                              msg.toLowerCase().includes("success");
+
       // Check if we have a valid login_cookie (not null, not empty string)
       if (loginCookie && typeof loginCookie === 'string' && loginCookie.trim().length > 0) {
         console.log(`[TwitterAPI] Login successful for user: ${user_name}, cookie length: ${loginCookie.length}`);
         return {
           success: true,
           login_cookie: loginCookie,
+        };
+      }
+
+      // If status is success but no cookie, return success with warning
+      if (isStatusSuccess) {
+        console.warn(`[TwitterAPI] Status is success but no login_cookie found for user: ${user_name}`, data);
+        return {
+          success: true,
+          login_cookie: "", // Empty cookie - might need to retry or check account status
+          message: msg || status || "Login status is success but no cookie returned",
         };
       }
 
