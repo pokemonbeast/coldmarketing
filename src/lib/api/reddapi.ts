@@ -53,8 +53,8 @@ export class ReddapiClient {
   private getHeaders(): Record<string, string> {
     return {
       "Content-Type": "application/json",
-      "X-RapidAPI-Key": this.apiKey,
-      "X-RapidAPI-Host": this.apiHost,
+      "x-rapidapi-key": this.apiKey,
+      "x-rapidapi-host": this.apiHost,
     };
   }
 
