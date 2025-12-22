@@ -1369,6 +1369,13 @@ export default function AdminTestingPage() {
                       <span className="text-gray-600">•</span>
                       <span className="text-gray-500 truncate">{selectedProviderData.api_url}</span>
                     </>
+                  ) : selectedProviderData.provider_type === "stagehand_reddit" ? (
+                    <>
+                      <Bot className="w-3 h-3 text-purple-400" />
+                      <span className="text-purple-400">Stagehand (Reddit)</span>
+                      <span className="text-gray-600">•</span>
+                      <span className="text-gray-500 truncate">{selectedProviderData.api_url}</span>
+                    </>
                   ) : (
                     <>
                       <Server className="w-3 h-3 text-blue-400" />
