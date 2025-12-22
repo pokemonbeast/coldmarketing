@@ -128,10 +128,11 @@ export async function POST(request: NextRequest) {
     console.log(`[Stagehand Comment] Using account: ${redditAccount.username}`);
 
     // Get LLM API key from environment (supports Google Gemini)
-    const modelApiKey = process.env.GOOGLE_AI_API_KEY || process.env.OPENAI_API_KEY;
+    // Stagehand expects GOOGLE_API_KEY (not GOOGLE_AI_API_KEY)
+    const modelApiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_AI_API_KEY || process.env.OPENAI_API_KEY;
     if (!modelApiKey) {
       return NextResponse.json(
-        { error: "No LLM API key configured (GOOGLE_AI_API_KEY or OPENAI_API_KEY)" },
+        { error: "No LLM API key configured (GOOGLE_API_KEY, GOOGLE_AI_API_KEY, or OPENAI_API_KEY)" },
         { status: 500 }
       );
     }
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest) {
       apiKey,
       projectId,
       modelApiKey,
-      modelName: "gemini-2.5-flash-preview-04-17", // Latest Gemini model
+      modelName: "gemini-2.0-flash", // Stable Gemini model
       proxies: (config?.proxies as boolean) ?? true,
       stealth: (config?.stealth as boolean) ?? true,
       timing: (config?.timing as { min_delay: number; max_delay: number }) ?? {
