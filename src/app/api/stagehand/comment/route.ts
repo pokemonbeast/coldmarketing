@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       apiKey,
       projectId,
       modelApiKey,
-      modelName: "gemini-2.5-flash-preview-04-17", // Latest Gemini preview model
+      modelName: "gemini-2.5-pro-preview-03-25", // Gemini Pro preview model
       proxies: (config?.proxies as boolean) ?? true,
       stealth: (config?.stealth as boolean) ?? true,
       timing: (config?.timing as { min_delay: number; max_delay: number }) ?? {
