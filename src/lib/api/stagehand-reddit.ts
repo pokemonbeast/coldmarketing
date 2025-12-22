@@ -5,8 +5,10 @@ import { Stagehand } from "@browserbasehq/stagehand";
 import { z } from "zod";
 
 export interface StagehandRedditConfig {
-  apiKey: string;
-  projectId: string;
+  apiKey: string; // Browserbase API key
+  projectId: string; // Browserbase project ID
+  modelApiKey?: string; // LLM API key (Google, OpenAI, Anthropic)
+  modelName?: string; // LLM model name
   proxies?: boolean;
   stealth?: boolean;
   timing?: {
@@ -63,6 +65,11 @@ export class StagehandRedditClient {
       env: "BROWSERBASE",
       apiKey: this.config.apiKey,
       projectId: this.config.projectId,
+      // LLM configuration for natural language commands (Google Gemini)
+      model: {
+        modelName: (this.config.modelName || "gemini-2.5-flash-preview-04-17") as "gemini-2.5-flash-preview-04-17",
+        apiKey: this.config.modelApiKey,
+      },
       browserbaseSessionCreateParams: {
         proxies: this.config.proxies,
         browserSettings: {

@@ -128,10 +128,21 @@ export async function POST(request: NextRequest) {
     const redditAccount = account as unknown as RedditAccount;
     console.log(`[Stagehand Post] Using account: ${redditAccount.username}`);
 
+    // Get LLM API key from environment (supports Google Gemini)
+    const modelApiKey = process.env.GOOGLE_AI_API_KEY || process.env.OPENAI_API_KEY;
+    if (!modelApiKey) {
+      return NextResponse.json(
+        { error: "No LLM API key configured (GOOGLE_AI_API_KEY or OPENAI_API_KEY)" },
+        { status: 500 }
+      );
+    }
+
     // Initialize Stagehand client
     const client = createStagehandRedditClient({
       apiKey,
       projectId,
+      modelApiKey,
+      modelName: "gemini-2.5-flash-preview-04-17", // Latest Gemini model
       proxies: (config?.proxies as boolean) ?? true,
       stealth: (config?.stealth as boolean) ?? true,
       timing: (config?.timing as { min_delay: number; max_delay: number }) ?? {
