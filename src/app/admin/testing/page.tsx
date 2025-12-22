@@ -1068,6 +1068,7 @@ export default function AdminTestingPage() {
             account_used: data.account_used,
             elapsed_ms: data.elapsed_ms,
             error: data.error,
+            session: data.session, // Include session info for live view links
           },
           error: data.error,
           timestamp: new Date().toISOString(),
@@ -1735,11 +1736,8 @@ export default function AdminTestingPage() {
                   </div>
                 )}
 
-                {/* Stagehand session info - show for both success and error */}
-                {isStagehandProvider && (
-                  (typeof result.result === "object" && result.result !== null && "session" in result.result) ||
-                  (result.error && typeof result.error === "object" && "session" in (result.error as Record<string, unknown>))
-                ) && (
+                {/* Stagehand session info - show for any response with session data */}
+                {(typeof result.result === "object" && result.result !== null && "session" in result.result) && (
                   <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 space-y-3">
                     <p className="text-purple-400 text-sm font-medium flex items-center gap-2">
                       <Bot className="w-4 h-4" />
