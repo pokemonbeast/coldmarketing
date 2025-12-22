@@ -149,16 +149,16 @@ export class StagehandRedditClient {
       await page.goto("https://www.reddit.com/login");
       await this.humanDelay();
 
-      // Enter username
-      await this.stagehand.act(`type "${username}" into the username field`);
+      // Enter username - be very specific about which field
+      await this.stagehand.act(`click on the input field labeled "Email or username" and type "${username}"`);
       await this.humanDelay();
 
-      // Enter password
-      await this.stagehand.act(`type "${password}" into the password field`);
+      // Enter password - be explicit this is the password/secret field
+      await this.stagehand.act(`click on the password input field (the second input field, type="password") and type the password "${password}"`);
       await this.humanDelay();
 
-      // Click login button
-      await this.stagehand.act("click the login button");
+      // Click the orange "Log In" button
+      await this.stagehand.act('click the orange "Log In" button to submit the login form');
       await this.humanDelay();
 
       // Wait for navigation/login to complete
