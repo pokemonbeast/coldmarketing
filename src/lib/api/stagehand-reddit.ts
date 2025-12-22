@@ -73,7 +73,8 @@ export class StagehandRedditClient {
       browserbaseSessionCreateParams: {
         proxies: this.config.proxies,
         browserSettings: {
-          advancedStealth: this.config.stealth,
+          // Basic stealth is enabled by default on paid plans
+          // advancedStealth requires Enterprise plan - don't set it
           viewport: { width: 1920, height: 1080 },
         },
       },
