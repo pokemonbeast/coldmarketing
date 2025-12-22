@@ -67,7 +67,7 @@ export class StagehandRedditClient {
       projectId: this.config.projectId,
       // LLM configuration for natural language commands (Google Gemini)
       model: {
-        modelName: (this.config.modelName || "gemini-2.5-flash") as "gemini-2.5-flash",
+        modelName: (this.config.modelName || "gemini-2.5-flash-preview-04-17") as "gemini-2.5-flash-preview-04-17",
         apiKey: this.config.modelApiKey,
       },
       browserbaseSessionCreateParams: {
