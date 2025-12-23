@@ -74,6 +74,15 @@ interface ResearchResult {
     parsedCommunityName?: string;
     searchTerm?: string;
     postUrl?: string;
+    // GMB Lead fields
+    company_name?: string;
+    industry?: string;
+    city?: string;
+    state?: string;
+    email?: string;
+    phone?: string;
+    website?: string;
+    address?: string;
   };
   reveal_at: string;
   title: string | null;
