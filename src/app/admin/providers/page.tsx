@@ -35,10 +35,11 @@ const PROVIDER_TYPES: { value: ProviderType; label: string; icon: React.ReactNod
 ];
 
 // Default configs for Apify actors
-const APIFY_ACTOR_PRESETS: Record<string, { name: string; actorId: string; defaultConfig: object }> = {
+const APIFY_ACTOR_PRESETS: Record<string, { name: string; actorId: string; defaultConfig: object; slug?: string }> = {
   "google-maps": {
-    name: "Google Maps Scraper",
+    name: "Google Maps Scraper (Compass)",
     actorId: "compass/crawler-google-places",
+    slug: "gmb-leads",
     defaultConfig: {
       includeWebResults: false,
       language: "en",
@@ -61,6 +62,18 @@ const APIFY_ACTOR_PRESETS: Record<string, { name: string; actorId: string; defau
       scrapeTableReservationProvider: false,
       searchStringsArray: ["restaurant"],
       skipClosedPlaces: false,
+    },
+  },
+  "google-maps-xmiso": {
+    name: "Google Maps Leads (XMiso)",
+    actorId: "xmiso_scrapers/millions-us-businesses-leads-with-emails-from-google-maps",
+    slug: "gmb-leads-xmiso",
+    defaultConfig: {
+      category: "restaurant",
+      country: "US",
+      state: "All",
+      area: 10,
+      max_results: 100,
     },
   },
 };
@@ -148,7 +161,7 @@ export default function AdminProvidersPage() {
       setFormData({
         ...formData,
         name: preset.name,
-        slug: presetKey,
+        slug: preset.slug || presetKey,
         actor_id: preset.actorId,
         config: JSON.stringify(preset.defaultConfig, null, 2),
       });

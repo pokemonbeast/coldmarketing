@@ -6,6 +6,8 @@ import {
   hasActiveSubscription,
   isRedditScrapingActive,
 } from '@/lib/services/research';
+import type { Database } from '@/types/database';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Vercel cron job secret for authentication
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -23,9 +25,10 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient();
+    const supabaseTyped = supabase as SupabaseClient<Database>;
 
     // Check if Reddit scraping provider is active
-    const { active } = await isRedditScrapingActive(supabase);
+    const { active } = await isRedditScrapingActive(supabaseTyped);
     if (!active) {
       return NextResponse.json({
         success: true,
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all active businesses with keywords
-    const businesses = await getBusinessesForWeeklyResearch(supabase);
+    const businesses = await getBusinessesForWeeklyResearch(supabaseTyped);
 
     const results: Array<{
       businessId: string;
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
     // Process each business
     for (const business of businesses) {
       // Check if user has active subscription
-      const hasSubscription = await hasActiveSubscription(supabase, business.user_id);
+      const hasSubscription = await hasActiveSubscription(supabaseTyped, business.user_id);
       
       if (!hasSubscription) {
         results.push({
@@ -69,7 +72,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Run weekly research
-      const result = await triggerWeeklyResearch(supabase, business.id);
+      const result = await triggerWeeklyResearch(supabaseTyped, business.id);
       
       results.push({
         businessId: business.id,

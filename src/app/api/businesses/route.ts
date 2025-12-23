@@ -9,7 +9,8 @@ import {
   processTarget,
   getNextUnfulfilledTarget,
 } from '@/lib/services/gmb-research';
-import type { GMBTarget } from '@/types/database';
+import type { GMBTarget, Database } from '@/types/database';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // GET: List user's businesses
 export async function GET(request: NextRequest) {
@@ -152,11 +153,11 @@ export async function POST(request: NextRequest) {
     
     if (hasActiveSubscription && keywords && keywords.length > 0) {
       // Check if reddit-scraping provider is active
-      const { active: providerActive } = await isRedditScrapingActive(serviceClient);
+      const { active: providerActive } = await isRedditScrapingActive(serviceClient as SupabaseClient<Database>);
       
       if (providerActive) {
         // Trigger research asynchronously (don't await - let it run in background)
-        triggerInitialResearch(serviceClient, business.id)
+        triggerInitialResearch(serviceClient as SupabaseClient<Database>, business.id)
           .then((result) => {
             if (result.success) {
               console.log(`Initial research started for business ${business.id}: ${result.itemCount} items`);

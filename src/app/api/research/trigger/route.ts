@@ -8,6 +8,8 @@ import {
   isRedditScrapingActive,
   getBusinessWithKeywords,
 } from '@/lib/services/research';
+import type { Database } from '@/types/database';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export async function POST(request: NextRequest) {
   try {
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check provider is active
-    const { active } = await isRedditScrapingActive(supabase);
+    const { active } = await isRedditScrapingActive(supabase as SupabaseClient<Database>);
     if (!active) {
       return NextResponse.json(
         { error: 'Reddit scraping provider is not currently active' },

@@ -497,8 +497,8 @@ export async function processTarget(
     // No cache - run fresh scrape
     console.log(`🆕 No cache found, running fresh scrape for "${target.industry}"`);
 
-    // Run the GMB scraper
-    const { runId, datasetId, items } = await runGmbScraper(
+    // Run the GMB scraper (compass)
+    const { runId, datasetId, items } = await runCompassScraper(
       gmbProvider.api_key_encrypted!,
       target,
       50
@@ -509,7 +509,7 @@ export async function processTarget(
       .from('apify_scrape_results')
       .insert({
         provider_id: gmbProvider.id,
-        actor_id: GMB_SCRAPER_ACTOR_ID,
+        actor_id: COMPASS_SCRAPER_ACTOR_ID,
         run_id: runId,
         dataset_id: datasetId,
         input_config: {
@@ -597,6 +597,216 @@ export async function processTarget(
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
+}
+
+/**
+ * Process an XMiso target for a business
+ * Uses same caching strategy as compass scraper (6 months, shared cache)
+ */
+export async function processXmisoTarget(
+  supabase: SupabaseClientType,
+  businessId: string,
+  target: XmisoGMBTarget,
+  targetIndex: number
+): Promise<GmbResearchResult> {
+  try {
+    // Check if xmiso provider is active
+    const { data: provider } = await supabase
+      .from('api_providers')
+      .select('id, api_key_encrypted, config')
+      .eq('slug', XMISO_PROVIDER_SLUG)
+      .eq('is_active', true)
+      .single();
+
+    if (!provider || !provider.api_key_encrypted) {
+      return { success: false, error: 'XMiso GMB scraping provider not active' };
+    }
+
+    // Check if email verification is active
+    const { active: emailActive, provider: emailProvider } = await isEmailVerificationActive(supabase);
+    if (!emailActive || !emailProvider) {
+      return { success: false, error: 'Email verification provider not active' };
+    }
+
+    const emailProviderConfig = emailProvider.config as { actor_id?: string } | null;
+    const emailActorId = emailProviderConfig?.actor_id;
+    if (!emailActorId) {
+      return { success: false, error: 'Email verification actor not configured' };
+    }
+
+    const cacheKey = generateXmisoCacheKey(target);
+    
+    // Check for existing cache entry
+    const existingCache = await getCacheEntry(supabase, cacheKey);
+    
+    if (existingCache) {
+      // Use cached data - just mark the target as fulfilled
+      console.log(`📦 Using cached data for xmiso target in cache ${existingCache.id}`);
+      
+      await markXmisoTargetFulfilled(
+        supabase,
+        businessId,
+        targetIndex,
+        existingCache.id,
+        existingCache.result_count
+      );
+
+      return {
+        success: true,
+        cacheId: existingCache.id,
+        scrapeResultId: existingCache.scrape_result_id,
+        resultCount: existingCache.result_count,
+        emailCount: existingCache.email_count,
+        fromCache: true,
+      };
+    }
+
+    // No cache - run fresh scrape
+    const searchTerm = target.keyword || target.category || 'business';
+    console.log(`🆕 No cache found, running fresh xmiso scrape for "${searchTerm}"`);
+
+    // Run the XMiso scraper
+    const { runId, datasetId, items } = await runXmisoScraper(
+      provider.api_key_encrypted!,
+      target,
+      100
+    );
+
+    // Save raw results to apify_scrape_results
+    const { data: savedResult, error: saveError } = await supabase
+      .from('apify_scrape_results')
+      .insert({
+        provider_id: provider.id,
+        actor_id: XMISO_SCRAPER_ACTOR_ID,
+        run_id: runId,
+        dataset_id: datasetId,
+        input_config: {
+          keyword: target.keyword,
+          category: target.category,
+          country: target.country,
+          state: target.state,
+          city: target.city,
+          cacheKey,
+        },
+        results_data: items,
+        item_count: items.length,
+        status: 'completed',
+      })
+      .select('id')
+      .single();
+
+    if (saveError || !savedResult) {
+      console.error('Failed to save scrape results:', saveError);
+      return { success: false, error: 'Failed to save scrape results' };
+    }
+
+    // Extract emails from results (xmiso already includes emails)
+    const extraction = extractLeadsFromGmbScrape(items, target.keyword || target.category || 'business');
+    const emails = extraction.leads.map(l => l.email);
+
+    let emailCount = 0;
+
+    // Verify emails if any were found
+    if (emails.length > 0) {
+      const verificationResults = await verifyEmails(
+        emailProvider.api_key_encrypted!,
+        emailActorId,
+        emails
+      );
+
+      // Save verified leads with business_id for direct linking
+      const saveResult = await processAndSaveVerifiedLeads(
+        supabase,
+        extraction.leads,
+        verificationResults,
+        savedResult.id,
+        businessId
+      );
+
+      emailCount = saveResult.totalInserted;
+      console.log(`💾 Saved ${emailCount} verified leads from xmiso scrape`);
+    }
+
+    // Create cache entry (same 6 month expiry as compass scraper)
+    const cacheId = await upsertCacheEntry(supabase, {
+      cacheKey,
+      industry: target.keyword || target.category || 'business',
+      country: target.country,
+      state: target.state || null,
+      city: target.city || null,
+      scrapeResultId: savedResult.id,
+      resultCount: items.length,
+      emailCount,
+    });
+
+    if (!cacheId) {
+      return { success: false, error: 'Failed to create cache entry' };
+    }
+
+    // Mark target as fulfilled
+    await markXmisoTargetFulfilled(
+      supabase,
+      businessId,
+      targetIndex,
+      cacheId,
+      items.length
+    );
+
+    return {
+      success: true,
+      cacheId,
+      scrapeResultId: savedResult.id,
+      resultCount: items.length,
+      emailCount,
+      fromCache: false,
+    };
+
+  } catch (error) {
+    console.error('XMiso target processing error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Mark an xmiso target as fulfilled in the business's gmb_targets
+ */
+async function markXmisoTargetFulfilled(
+  supabase: SupabaseClientType,
+  businessId: string,
+  targetIndex: number,
+  cacheId: string,
+  resultCount: number
+): Promise<boolean> {
+  // Get current targets
+  const { data: business } = await supabase
+    .from('businesses')
+    .select('gmb_targets')
+    .eq('id', businessId)
+    .single();
+
+  if (!business) return false;
+
+  const targets = (business.gmb_targets as unknown as XmisoGMBTarget[]) || [];
+  if (targetIndex < 0 || targetIndex >= targets.length) return false;
+
+  // Update the specific target
+  targets[targetIndex] = {
+    ...targets[targetIndex],
+    fulfilled_at: new Date().toISOString(),
+    cache_id: cacheId,
+    result_count: resultCount,
+  };
+
+  // Save back
+  const { error } = await supabase
+    .from('businesses')
+    .update({ gmb_targets: targets as unknown as Json })
+    .eq('id', businessId);
+
+  return !error;
 }
 
 /**
