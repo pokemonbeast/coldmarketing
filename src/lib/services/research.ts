@@ -274,7 +274,7 @@ async function runRedditScraper(
   return {
     runId: run.id,
     datasetId: run.defaultDatasetId,
-    items: items as RedditScrapedPost[],
+    items: items as unknown as RedditScrapedPost[],
   };
 }
 
