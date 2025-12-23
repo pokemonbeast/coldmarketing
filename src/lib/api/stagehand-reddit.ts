@@ -68,7 +68,7 @@ export class StagehandRedditClient {
    * Build the proxy configuration based on proxyMode
    * Browserbase expects: { type: "external", server: "http://host:port", username: "...", password: "..." }
    */
-  private buildProxyConfig(): boolean | Array<{ type: string; server?: string; username?: string; password?: string }> {
+  private buildProxyConfig(): boolean | Array<{ type: "external"; server: string; username?: string; password?: string }> {
     const { proxyMode, customProxy } = this.config;
 
     if (proxyMode === "none") {
@@ -127,15 +127,20 @@ export class StagehandRedditClient {
         }
       }
 
-      // Ensure server has protocol
-      if (server && !server.startsWith("http://") && !server.startsWith("https://")) {
+      // Ensure server is defined and has protocol
+      if (!server) {
+        console.error("[Stagehand] Proxy server is required but not provided");
+        return false;
+      }
+
+      if (!server.startsWith("http://") && !server.startsWith("https://")) {
         server = "http://" + server;
       }
 
       const proxyConfig = [
         {
           type: "external" as const,
-          server,
+          server: server, // Now guaranteed to be a string
           username,
           password,
         },
