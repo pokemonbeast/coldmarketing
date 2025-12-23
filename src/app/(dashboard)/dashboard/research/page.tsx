@@ -463,12 +463,28 @@ export default function LiveResearchPage() {
             Research results will appear here as your AI agent discovers relevant content
           </p>
         </div>
-      ) : !selectedBusiness.keywords || selectedBusiness.keywords.length === 0 ? (
+      ) : platform === "gmb" && (!selectedBusiness.gmb_targets || selectedBusiness.gmb_targets.length === 0) ? (
+        // GMB platform selected but no targets configured
+        <div className="glass-card p-12 text-center">
+          <Target className="w-12 h-12 text-amber-500/50 mx-auto mb-3" />
+          <p className="text-gray-400 mb-2">No GMB targets configured</p>
+          <p className="text-gray-500 text-sm mb-4">
+            Add business lead targets to start finding verified leads with emails
+          </p>
+          <a
+            href="/dashboard/businesses"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl btn-primary text-white font-medium"
+          >
+            Manage Targets
+          </a>
+        </div>
+      ) : platform !== "gmb" && (!selectedBusiness.keywords || selectedBusiness.keywords.length === 0) ? (
+        // Reddit research requires keywords (GMB doesn't need keywords)
         <div className="glass-card p-12 text-center">
           <AlertCircle className="w-12 h-12 text-amber-500/50 mx-auto mb-3" />
           <p className="text-gray-400 mb-2">No keywords configured</p>
           <p className="text-gray-500 text-sm mb-4">
-            Add keywords to your business to start receiving research insights
+            Add keywords to your business to start receiving Reddit research insights
           </p>
           <a
             href="/dashboard/businesses"
