@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
   try {
     // Use service client to bypass RLS (needed for admin impersonation)
     const supabase = await createServiceClient();
+    const supabaseTyped = supabase as unknown as SupabaseClient<Database>;
     
     // Get effective user ID (supports admin impersonation)
     const { userId, error: authError } = await getEffectiveUserId(request);
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
       .eq('id', userId)
       .single();
 
-    const business = await getBusinessWithKeywords(supabase, businessId);
+    const business = await getBusinessWithKeywords(supabaseTyped, businessId);
     
     if (!business) {
       return NextResponse.json(
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check subscription
-    const hasSubscription = await hasActiveSubscription(supabase, business.user_id);
+    const hasSubscription = await hasActiveSubscription(supabaseTyped, business.user_id);
     if (!hasSubscription) {
       return NextResponse.json(
         { error: 'Active subscription required to run research' },
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check provider is active
-    const { active } = await isRedditScrapingActive(supabase as SupabaseClient<Database>);
+    const { active } = await isRedditScrapingActive(supabaseTyped);
     if (!active) {
       return NextResponse.json(
         { error: 'Reddit scraping provider is not currently active' },
@@ -86,9 +87,9 @@ export async function POST(request: NextRequest) {
     // Trigger research based on type
     let result;
     if (runType === 'weekly') {
-      result = await triggerWeeklyResearch(supabase, businessId);
+      result = await triggerWeeklyResearch(supabaseTyped, businessId);
     } else {
-      result = await triggerInitialResearch(supabase, businessId);
+      result = await triggerInitialResearch(supabaseTyped, businessId);
     }
 
     if (!result.success) {

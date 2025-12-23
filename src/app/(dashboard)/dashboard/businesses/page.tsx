@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import type { Business, GMBTarget } from "@/types/database";
 import { GMBTargetSelector } from "@/components/GMBTargetSelector";
+import { GMBTargetSelectorXmiso } from "@/components/GMBTargetSelectorXmiso";
+import type { XmisoGMBTarget } from "@/lib/data/xmiso-categories";
 
 const TONE_OPTIONS = [
   { value: "professional", label: "Professional" },
@@ -49,6 +51,7 @@ export default function BusinessesPage() {
   const [keywordInput, setKeywordInput] = useState("");
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [showSubscribePrompt, setShowSubscribePrompt] = useState(false);
+  const [gmbScraperType, setGmbScraperType] = useState<'compass' | 'xmiso' | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -81,6 +84,11 @@ export default function BusinessesPage() {
 
   useEffect(() => {
     fetchBusinesses();
+    // Fetch GMB scraper type
+    fetch('/api/gmb/scraper-type')
+      .then(res => res.json())
+      .then(data => setGmbScraperType(data.scraperType))
+      .catch(() => setGmbScraperType(null));
   }, [isImpersonating, impersonatedUser]);
 
   const openForm = (business?: Business) => {
@@ -412,12 +420,21 @@ export default function BusinessesPage() {
                 </div>
 
                 {/* Business Lead Finder Targets */}
-                <GMBTargetSelector
-                  targets={formData.gmb_targets}
-                  onChange={(targets) => setFormData({ ...formData, gmb_targets: targets })}
-                  maxTargets={20}
-                  disabled={saving}
-                />
+                {gmbScraperType === 'xmiso' ? (
+                  <GMBTargetSelectorXmiso
+                    targets={formData.gmb_targets as unknown as XmisoGMBTarget[]}
+                    onChange={(targets) => setFormData({ ...formData, gmb_targets: targets as unknown as GMBTarget[] })}
+                    maxTargets={20}
+                    disabled={saving}
+                  />
+                ) : (
+                  <GMBTargetSelector
+                    targets={formData.gmb_targets}
+                    onChange={(targets) => setFormData({ ...formData, gmb_targets: targets })}
+                    maxTargets={20}
+                    disabled={saving}
+                  />
+                )}
               </div>
             </div>
 

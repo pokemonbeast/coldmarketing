@@ -146,11 +146,11 @@ export async function PATCH(
 
         if (profile?.subscription_status === 'active') {
           // Check if provider is active
-          const { active: providerActive } = await isRedditScrapingActive(supabase as SupabaseClient<Database>);
+          const { active: providerActive } = await isRedditScrapingActive(supabase as unknown as SupabaseClient<Database>);
 
           if (providerActive) {
             // Trigger research asynchronously
-            triggerInitialResearch(supabase as SupabaseClient<Database>, id)
+            triggerInitialResearch(supabase as unknown as SupabaseClient<Database>, id)
               .then((result) => {
                 if (result.success) {
                   console.log(`Research started for business ${id}: ${result.itemCount} items`);

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const supabaseTyped = supabase as SupabaseClient<Database>;
+    const supabaseTyped = supabase as unknown as SupabaseClient<Database>;
 
     // Check if Reddit scraping provider is active
     const { active } = await isRedditScrapingActive(supabaseTyped);
