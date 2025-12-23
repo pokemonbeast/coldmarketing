@@ -92,30 +92,41 @@ export async function POST(request: NextRequest) {
     }
 
     // Increment unread count for the user
-    await supabase.rpc('increment_unread_emails', { user_id_param: userId }).catch(() => {
-      // Fallback if RPC doesn't exist - use direct update
-      return supabase
-        .from('profiles')
-        .update({ 
-          unread_emails_count: supabase.rpc('coalesce', { 
-            value: supabase.from('profiles').select('unread_emails_count').eq('id', userId).single() 
-          }) 
-        })
-        .eq('id', userId);
-    });
+    try {
+      // Try RPC function first (if it exists)
+      const { error: rpcError } = await supabase.rpc('increment_unread_emails', { 
+        user_id_param: userId 
+      });
+      
+      if (rpcError) {
+        // Fallback: direct update if RPC doesn't exist
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('unread_emails_count')
+          .eq('id', userId)
+          .single();
 
-    // Simple increment via raw SQL-style update
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('unread_emails_count')
-      .eq('id', userId)
-      .single();
-
-    if (profile) {
-      await supabase
+        if (profile) {
+          await supabase
+            .from('profiles')
+            .update({ unread_emails_count: (profile.unread_emails_count || 0) + 1 })
+            .eq('id', userId);
+        }
+      }
+    } catch (error) {
+      // Fallback: direct update if RPC call fails
+      const { data: profile } = await supabase
         .from('profiles')
-        .update({ unread_emails_count: (profile.unread_emails_count || 0) + 1 })
-        .eq('id', userId);
+        .select('unread_emails_count')
+        .eq('id', userId)
+        .single();
+
+      if (profile) {
+        await supabase
+          .from('profiles')
+          .update({ unread_emails_count: (profile.unread_emails_count || 0) + 1 })
+          .eq('id', userId);
+      }
     }
 
     console.log(`[ReachInbox Webhook] Stored reply for user ${userId} from ${payload.lead_email}`);
