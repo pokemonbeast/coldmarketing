@@ -436,6 +436,68 @@ export type Database = {
           },
         ]
       }
+      email_replies: {
+        Row: {
+          id: string
+          user_id: string
+          campaign_id: number
+          lead_email: string
+          lead_first_name: string | null
+          lead_last_name: string | null
+          email_account: string
+          subject: string | null
+          body: string
+          message_id: string | null
+          thread_id: string | null
+          step_number: number | null
+          is_read: boolean
+          received_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          campaign_id: number
+          lead_email: string
+          lead_first_name?: string | null
+          lead_last_name?: string | null
+          email_account: string
+          subject?: string | null
+          body: string
+          message_id?: string | null
+          thread_id?: string | null
+          step_number?: number | null
+          is_read?: boolean
+          received_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          campaign_id?: number
+          lead_email?: string
+          lead_first_name?: string | null
+          lead_last_name?: string | null
+          email_account?: string
+          subject?: string | null
+          body?: string
+          message_id?: string | null
+          thread_id?: string | null
+          step_number?: number | null
+          is_read?: boolean
+          received_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_replies_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       executed_actions: {
         Row: {
           business_id: string
@@ -789,6 +851,7 @@ export type Database = {
           subscription_current_period_end: string | null
           subscription_plan_name: string | null
           subscription_status: string | null
+          unread_emails_count: number | null
           updated_at: string
         }
         Insert: {
@@ -803,6 +866,7 @@ export type Database = {
           subscription_current_period_end?: string | null
           subscription_plan_name?: string | null
           subscription_status?: string | null
+          unread_emails_count?: number | null
           updated_at?: string
         }
         Update: {
@@ -817,9 +881,51 @@ export type Database = {
           subscription_current_period_end?: string | null
           subscription_plan_name?: string | null
           subscription_status?: string | null
+          unread_emails_count?: number | null
           updated_at?: string
         }
         Relationships: []
+      }
+      reachinbox_campaigns: {
+        Row: {
+          id: string
+          user_id: string
+          campaign_id: number
+          campaign_name: string
+          status: string
+          email_accounts: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          campaign_id: number
+          campaign_name: string
+          status?: string
+          email_accounts?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          campaign_id?: number
+          campaign_name?: string
+          status?: string
+          email_accounts?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reachinbox_campaigns_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reddit_accounts: {
         Row: {
