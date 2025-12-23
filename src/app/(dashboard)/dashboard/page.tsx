@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useImpersonation } from "@/lib/contexts/ImpersonationContext";
 import {
   Zap,
   Building2,
@@ -38,6 +39,7 @@ interface UpcomingAction {
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
+  const { isImpersonating, impersonatedUser, getEffectiveUserId } = useImpersonation();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [upcomingActions, setUpcomingActions] = useState<UpcomingAction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,11 +61,14 @@ export default function DashboardPage() {
       
       if (!user) return;
 
+      // Use impersonated user ID if impersonating
+      const effectiveUserId = getEffectiveUserId() || user.id;
+
       // Fetch profile for subscription status
       const { data: profile } = await supabase
         .from("profiles")
         .select("subscription_status, subscription_plan_name")
-        .eq("id", user.id)
+        .eq("id", effectiveUserId)
         .single();
 
       const hasActiveSubscription = profile?.subscription_status === "active";
@@ -72,19 +77,19 @@ export default function DashboardPage() {
       const { count: totalBusinesses } = await supabase
         .from("businesses")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
+        .eq("user_id", effectiveUserId);
 
       const { count: activeBusinesses } = await supabase
         .from("businesses")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
+        .eq("user_id", effectiveUserId)
         .eq("is_active", true);
 
       // Fetch pending actions
       const { data: businesses } = await supabase
         .from("businesses")
         .select("id")
-        .eq("user_id", user.id) as { data: { id: string }[] | null };
+        .eq("user_id", effectiveUserId) as { data: { id: string }[] | null };
 
       const businessIds = businesses?.map((b) => b.id) || [];
 
@@ -121,7 +126,7 @@ export default function DashboardPage() {
         const { count: completed } = await supabase
           .from("executed_actions")
           .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
+          .eq("user_id", effectiveUserId)
           .eq("status", "completed")
           .gte("executed_at", startOfMonth.toISOString());
 
@@ -133,7 +138,7 @@ export default function DashboardPage() {
       const { data: usage } = await supabase
         .from("action_usage")
         .select("actions_used, actions_limit")
-        .eq("user_id", user.id)
+        .eq("user_id", effectiveUserId)
         .lte("period_start", today)
         .gte("period_end", today)
         .single() as { data: { actions_used: number; actions_limit: number } | null };
@@ -152,7 +157,7 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [isImpersonating, impersonatedUser, getEffectiveUserId]);
 
   const StatCard = ({
     icon: Icon,

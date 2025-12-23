@@ -4,12 +4,21 @@
 import { Stagehand } from "@browserbasehq/stagehand";
 import { z } from "zod";
 
+export interface CustomProxyConfig {
+  server: string; // Full proxy URL: http://user:pass@host:port
+  username?: string;
+  password?: string;
+}
+
 export interface StagehandRedditConfig {
   apiKey: string; // Browserbase API key
   projectId: string; // Browserbase project ID
   modelApiKey?: string; // LLM API key (Google, OpenAI, Anthropic)
   modelName?: string; // LLM model name
-  proxies?: boolean;
+  proxyMode?: "browserbase" | "custom" | "none"; // Which proxy to use
+  customProxy?: CustomProxyConfig; // Custom proxy configuration
+  contextId?: string; // Browserbase Context ID for persistent browser profile
+  proxies?: boolean; // Legacy: use Browserbase proxies
   stealth?: boolean;
   timing?: {
     min_delay: number;
@@ -46,11 +55,106 @@ export class StagehandRedditClient {
 
   constructor(config: StagehandRedditConfig) {
     this.config = {
+      proxyMode: "browserbase", // Default to Browserbase proxies
       proxies: true,
       stealth: true,
-      timing: { min_delay: 2000, max_delay: 5000 },
+      // Slower timing to appear more human-like (3-7 seconds between actions)
+      timing: { min_delay: 3000, max_delay: 7000 },
       ...config,
     };
+  }
+
+  /**
+   * Build the proxy configuration based on proxyMode
+   * Browserbase expects: { type: "external", server: "http://host:port", username: "...", password: "..." }
+   */
+  private buildProxyConfig(): boolean | Array<{ type: string; server?: string; username?: string; password?: string }> {
+    const { proxyMode, customProxy } = this.config;
+
+    if (proxyMode === "none") {
+      console.log("[Stagehand] Proxy mode: none (direct connection)");
+      return false;
+    }
+
+    if (proxyMode === "custom" && customProxy) {
+      // Parse proxy URL if username/password are embedded
+      // Format: http://user:pass@host:port or https://user:pass@host:port
+      let server = customProxy.server;
+      let username = customProxy.username;
+      let password = customProxy.password;
+
+      console.log("[Stagehand] Parsing custom proxy URL:", server?.replace(/:[^:@]+@/, ":***@"));
+
+      // Check if credentials are embedded in the URL
+      if (server && server.includes("@")) {
+        // Use URL parsing for robust extraction
+        // Format: http://username:password@host:port
+        try {
+          // Add protocol if missing for URL parsing
+          const urlToParse = server.startsWith("http") ? server : "http://" + server;
+          const url = new URL(urlToParse);
+          
+          // Extract components
+          username = username || decodeURIComponent(url.username);
+          password = password || decodeURIComponent(url.password);
+          // Server is just protocol + host + port (no credentials)
+          server = `${url.protocol}//${url.host}`;
+          
+          console.log("[Stagehand] Parsed proxy using URL API:");
+          console.log("  - Server:", server);
+          console.log("  - Username:", username?.substring(0, 30) + (username && username.length > 30 ? "..." : ""));
+          console.log("  - Password:", password ? `[SET, ${password.length} chars]` : "[NOT SET]");
+        } catch (parseError) {
+          console.warn("[Stagehand] URL parsing failed, trying regex fallback:", parseError);
+          
+          // Fallback regex: protocol://username:password@host:port
+          // [^:] matches anything except colon (for username up to first colon)
+          // [^@] matches anything except @ (for password up to @)
+          const match = server.match(/^(https?:\/\/)?([^:]+):([^@]+)@(.+)$/);
+          if (match) {
+            const [, protocol, user, pass, hostPort] = match;
+            username = username || user;
+            password = password || pass;
+            server = (protocol || "http://") + hostPort;
+            
+            console.log("[Stagehand] Parsed proxy using regex:");
+            console.log("  - Server:", server);
+            console.log("  - Username:", username?.substring(0, 30) + "...");
+            console.log("  - Password:", password ? "[SET]" : "[NOT SET]");
+          } else {
+            console.error("[Stagehand] Failed to parse proxy URL format");
+          }
+        }
+      }
+
+      // Ensure server has protocol
+      if (server && !server.startsWith("http://") && !server.startsWith("https://")) {
+        server = "http://" + server;
+      }
+
+      const proxyConfig = [
+        {
+          type: "external" as const,
+          server,
+          username,
+          password,
+        },
+      ];
+
+      console.log("[Stagehand] Final proxy config for Browserbase:", JSON.stringify({
+        type: proxyConfig[0].type,
+        server: proxyConfig[0].server,
+        usernameLength: proxyConfig[0].username?.length || 0,
+        hasPassword: !!proxyConfig[0].password,
+        passwordLength: proxyConfig[0].password?.length || 0,
+      }));
+
+      return proxyConfig;
+    }
+
+    // Default: use Browserbase proxies
+    console.log("[Stagehand] Proxy mode: browserbase (built-in proxies)");
+    return true;
   }
 
   /**
@@ -60,6 +164,38 @@ export class StagehandRedditClient {
     if (this.isInitialized) return;
 
     console.log("[Stagehand] Initializing browser session...");
+    console.log("[Stagehand] Proxy mode:", this.config.proxyMode);
+
+    const proxyConfig = this.buildProxyConfig();
+
+    // Build browser settings with optional context
+    const browserSettings: Record<string, unknown> = {
+      // Advanced Stealth enabled for enhanced bot detection evasion
+      advancedStealth: true,
+      viewport: { width: 1920, height: 1080 },
+      // Fingerprint to appear as a real user
+      fingerprint: {
+        browsers: ["chrome"],
+        devices: ["desktop"],
+        operatingSystems: ["windows"],
+        locales: ["en-US"],
+      },
+      // Block ads to reduce detection vectors
+      blockAds: true,
+      // Solve captchas if they appear
+      solveCaptchas: true,
+    };
+
+    // Add persistent context if provided (saves cookies, localStorage, browser history)
+    if (this.config.contextId) {
+      console.log("[Stagehand] Using persistent context:", this.config.contextId);
+      browserSettings.context = {
+        id: this.config.contextId,
+        persist: true, // Save state after session ends
+      };
+    } else {
+      console.log("[Stagehand] No context ID - using fresh browser profile");
+    }
 
     this.stagehand = new Stagehand({
       env: "BROWSERBASE",
@@ -71,12 +207,8 @@ export class StagehandRedditClient {
         apiKey: this.config.modelApiKey,
       },
       browserbaseSessionCreateParams: {
-        proxies: this.config.proxies,
-        browserSettings: {
-          // Basic stealth is enabled by default on paid plans
-          // advancedStealth requires Enterprise plan - don't set it
-          viewport: { width: 1920, height: 1080 },
-        },
+        proxies: proxyConfig,
+        browserSettings,
       },
     });
 
@@ -145,21 +277,37 @@ export class StagehandRedditClient {
         console.warn("[Stagehand] Network domain may already be enabled:", error);
       }
 
-      // Navigate to Reddit login
-      await page.goto("https://www.reddit.com/login");
+      // Navigate to Old Reddit login (less aggressive bot detection)
+      await page.goto("https://old.reddit.com/login");
       await this.humanDelay();
 
-      // Enter username - be very specific about which field
-      await this.stagehand.act(`click on the input field labeled "Email or username" and type "${username}"`);
-      await this.humanDelay();
+      // Check which Reddit version we're on and adapt
+      const currentUrl = page.url();
+      const isOldReddit = currentUrl.includes("old.reddit.com");
+      
+      if (isOldReddit) {
+        // Old Reddit login form
+        console.log("[Stagehand] Using Old Reddit login flow...");
+        await this.stagehand.act(`type "${username}" into the username input field`);
+        await this.humanDelay();
+        
+        await this.stagehand.act(`type "${password}" into the password input field`);
+        await this.humanDelay();
+        
+        await this.stagehand.act('click the "log in" button to submit the login form');
+        await this.humanDelay();
+      } else {
+        // New Reddit login form
+        console.log("[Stagehand] Using New Reddit login flow...");
+        await this.stagehand.act(`click on the input field labeled "Email or username" and type "${username}"`);
+        await this.humanDelay();
 
-      // Enter password - be explicit this is the password/secret field
-      await this.stagehand.act(`click on the password input field (the second input field, type="password") and type the password "${password}"`);
-      await this.humanDelay();
+        await this.stagehand.act(`click on the password input field (the second input field, type="password") and type the password "${password}"`);
+        await this.humanDelay();
 
-      // Click the orange "Log In" button
-      await this.stagehand.act('click the orange "Log In" button to submit the login form');
-      await this.humanDelay();
+        await this.stagehand.act('click the orange "Log In" button to submit the login form');
+        await this.humanDelay();
+      }
 
       // Wait for navigation/login to complete
       await new Promise((r) => setTimeout(r, 3000));
@@ -169,7 +317,7 @@ export class StagehandRedditClient {
         "Check if there is a user profile menu or avatar visible indicating successful login",
         z.object({
           isLoggedIn: z.boolean(),
-          username: z.string().optional(),
+          username: z.string().nullish(), // Allow null, undefined, or string
         })
       );
 
@@ -246,7 +394,7 @@ export class StagehandRedditClient {
         `Check if the comment "${comment.substring(0, 30)}..." appears on the page, indicating successful posting`,
         z.object({
           commentPosted: z.boolean(),
-          errorMessage: z.string().optional(),
+          errorMessage: z.string().nullish(), // Allow null, undefined, or string
         })
       );
 
@@ -319,7 +467,7 @@ export class StagehandRedditClient {
           "Check if there are any error messages visible on the page",
           z.object({
             hasError: z.boolean(),
-            errorMessage: z.string().optional(),
+            errorMessage: z.string().nullish(), // Allow null, undefined, or string
           })
         );
 
@@ -427,5 +575,27 @@ export function createStagehandRedditClient(
   config: StagehandRedditConfig
 ): StagehandRedditClient {
   return new StagehandRedditClient(config);
+}
+
+/**
+ * Create a new Browserbase Context for persistent browser profiles
+ * Uses the Browserbase SDK directly
+ */
+export async function createBrowserbaseContext(
+  apiKey: string,
+  projectId: string
+): Promise<string> {
+  // Import Browserbase SDK dynamically
+  const { Browserbase } = await import("@browserbasehq/sdk");
+  
+  const bb = new Browserbase({ apiKey });
+  
+  console.log("[Browserbase] Creating new context for project:", projectId);
+  
+  const context = await bb.contexts.create({ projectId });
+  
+  console.log("[Browserbase] Context created:", context.id);
+  
+  return context.id;
 }
 

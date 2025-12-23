@@ -19,6 +19,8 @@ import {
   User,
   Twitter,
   Bot,
+  Wifi,
+  MessagesSquare,
 } from "lucide-react";
 import type { ApiProvider } from "@/types/database";
 
@@ -171,6 +173,45 @@ const APIFY_ACTIONS = [
   },
 ];
 
+// Reddit Scraper Actions (for harshmaur/reddit-scraper-pro)
+const REDDIT_SCRAPER_ACTIONS = [
+  {
+    id: "run_reddit_scraper",
+    name: "Run Reddit Scraper",
+    description: "Search Reddit posts with custom search terms",
+    params: [
+      { key: "searchTerms", label: "Search Terms (comma-separated)", type: "text", required: true },
+      { key: "searchSort", label: "Sort By", type: "select", required: false, options: [
+        { value: "relevance", label: "Relevance" },
+        { value: "hot", label: "Hot" },
+        { value: "top", label: "Top" },
+        { value: "new", label: "New" },
+        { value: "comments", label: "Most Comments" },
+      ]},
+      { key: "searchTime", label: "Time Range", type: "select", required: false, options: [
+        { value: "hour", label: "Past Hour" },
+        { value: "day", label: "Past 24 Hours" },
+        { value: "week", label: "Past Week" },
+        { value: "month", label: "Past Month" },
+        { value: "year", label: "Past Year" },
+        { value: "all", label: "All Time" },
+      ]},
+      { key: "maxPostsCount", label: "Max Posts", type: "number", required: false },
+      { key: "searchPosts", label: "Search Posts", type: "checkbox", required: false },
+      { key: "searchComments", label: "Search Comments", type: "checkbox", required: false },
+      { key: "searchCommunities", label: "Search Communities", type: "checkbox", required: false },
+    ],
+  },
+  {
+    id: "check_run_status",
+    name: "Check Run Status",
+    description: "Check the status of a running scraper",
+    params: [
+      { key: "runId", label: "Run ID", type: "text", required: true },
+    ],
+  },
+];
+
 // Reddapi Actions (multi-step flow)
 const REDDAPI_ACTIONS = [
   {
@@ -306,6 +347,49 @@ const STAGEHAND_ACTIONS = [
   },
 ];
 
+// CrowdReply Actions (Reddit comment service)
+// Documentation: https://documenter.getpostman.com/view/5613076/2sB2qi9xwq
+const CROWDREPLY_ACTIONS = [
+  {
+    id: "create_comment",
+    name: "Create Comment Task",
+    description: "Create a Reddit comment task via CrowdReply API",
+    params: [
+      { key: "content", label: "Comment Content", type: "textarea", required: true },
+      { key: "threadUrl", label: "Reddit Post URL", type: "text", required: true },
+      { key: "project", label: "Project ID (optional if set in config)", type: "text", required: false },
+      { key: "scheduleAt", label: "Schedule At (YYYY-MM-DDTHH:MM:SS)", type: "text", required: false },
+      { key: "shouldAssignOP", label: "Assign to OP", type: "checkbox", required: false },
+    ],
+  },
+  {
+    id: "get_projects",
+    name: "Get Projects",
+    description: "Fetch all projects from CrowdReply to get project IDs",
+    params: [],
+  },
+  {
+    id: "get_balance",
+    name: "Get Balance",
+    description: "Check remaining balance on CrowdReply account",
+    params: [],
+  },
+  {
+    id: "get_task",
+    name: "Get Task Status",
+    description: "Check the status of a specific task",
+    params: [
+      { key: "taskId", label: "Task ID", type: "text", required: true },
+    ],
+  },
+  {
+    id: "get_tasks",
+    name: "Get All Tasks",
+    description: "Fetch all tasks from CrowdReply",
+    params: [],
+  },
+];
+
 export default function AdminTestingPage() {
   const [providers, setProviders] = useState<ApiProvider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("");
@@ -327,6 +411,9 @@ export default function AdminTestingPage() {
   const [selectedTwitterAccount, setSelectedTwitterAccount] = useState<string>("");
   const [loginCookie, setLoginCookie] = useState<string>("");
   const [lastTwitterProxy, setLastTwitterProxy] = useState<string>("");
+  
+  // Stagehand proxy mode state
+  const [proxyMode, setProxyMode] = useState<"browserbase" | "custom" | "none">("browserbase");
 
   const fetchProviders = async () => {
     setLoading(true);
@@ -386,9 +473,17 @@ export default function AdminTestingPage() {
   const isReddapiProvider = selectedProviderData?.provider_type === "reddapi";
   const isTwitterapiProvider = selectedProviderData?.provider_type === "twitterapi";
   const isStagehandProvider = selectedProviderData?.provider_type === "stagehand_reddit";
+  const isCrowdreplyProvider = selectedProviderData?.provider_type === "crowdreply";
+  
+  // Check if it's a Reddit scraper (Apify with reddit-scraper actor)
+  const providerConfig = selectedProviderData?.config as Record<string, unknown> | null;
+  const actorId = providerConfig?.actor_id as string | undefined;
+  const isRedditScraperProvider = isApifyProvider && actorId?.includes("reddit-scraper");
   
   // Get available actions based on provider type
-  const API_ACTIONS = isApifyProvider 
+  const API_ACTIONS = isRedditScraperProvider
+    ? REDDIT_SCRAPER_ACTIONS
+    : isApifyProvider 
     ? APIFY_ACTIONS 
     : isReddapiProvider 
     ? REDDAPI_ACTIONS 
@@ -396,13 +491,22 @@ export default function AdminTestingPage() {
     ? TWITTERAPI_ACTIONS
     : isStagehandProvider
     ? STAGEHAND_ACTIONS
+    : isCrowdreplyProvider
+    ? CROWDREPLY_ACTIONS
     : SMM_ACTIONS;
   const currentAction = API_ACTIONS.find((a) => a.id === selectedAction);
 
   // Reset action when provider changes
   useEffect(() => {
     if (selectedProviderData) {
-      const defaultAction = selectedProviderData.provider_type === "apify" 
+      // Check if it's a Reddit scraper
+      const config = selectedProviderData.config as Record<string, unknown> | null;
+      const actor = config?.actor_id as string | undefined;
+      const isRedditScraper = selectedProviderData.provider_type === "apify" && actor?.includes("reddit-scraper");
+      
+      const defaultAction = isRedditScraper
+        ? "run_reddit_scraper"
+        : selectedProviderData.provider_type === "apify" 
         ? "run_scraper" 
         : selectedProviderData.provider_type === "reddapi"
         ? "login"
@@ -410,6 +514,8 @@ export default function AdminTestingPage() {
         ? "login"
         : selectedProviderData.provider_type === "stagehand_reddit"
         ? "login"
+        : selectedProviderData.provider_type === "crowdreply"
+        ? "create_comment"
         : "services";
       setSelectedAction(defaultAction);
       setParams({});
@@ -418,6 +524,7 @@ export default function AdminTestingPage() {
       setLastLoginProxy("");
       setLoginCookie("");
       setLastTwitterProxy("");
+      setProxyMode("browserbase"); // Reset proxy mode to default
       
       // Fetch Reddit accounts when reddapi or stagehand provider is selected
       if (selectedProviderData.provider_type === "reddapi" || selectedProviderData.provider_type === "stagehand_reddit") {
@@ -459,6 +566,12 @@ export default function AdminTestingPage() {
       // Handle Stagehand actions differently
       if (isStagehandProvider) {
         await handleStagehandAction();
+        return;
+      }
+
+      // Handle CrowdReply actions differently
+      if (isCrowdreplyProvider) {
+        await handleCrowdreplyAction();
         return;
       }
 
@@ -571,8 +684,66 @@ export default function AdminTestingPage() {
           itemCount: data.itemCount,
           usageUsd: data.usageUsd,
         });
+      } else if (selectedAction === "run_reddit_scraper") {
+        // Reddit scraper with user-friendly fields
+        if (!params.searchTerms) {
+          setResult({
+            success: false,
+            action: selectedAction,
+            error: "Search terms are required",
+            timestamp: new Date().toISOString(),
+          });
+          return;
+        }
+
+        // Build input from form fields
+        const inputOverride: Record<string, unknown> = {
+          searchTerms: params.searchTerms.split(",").map((t: string) => t.trim()).filter(Boolean),
+        };
+        
+        if (params.searchSort) inputOverride.searchSort = params.searchSort;
+        if (params.searchTime) inputOverride.searchTime = params.searchTime;
+        if (params.maxPostsCount) inputOverride.maxPostsCount = parseInt(params.maxPostsCount);
+        if (params.searchPosts === "true") inputOverride.searchPosts = true;
+        if (params.searchPosts === "false") inputOverride.searchPosts = false;
+        if (params.searchComments === "true") inputOverride.searchComments = true;
+        if (params.searchComments === "false") inputOverride.searchComments = false;
+        if (params.searchCommunities === "true") inputOverride.searchCommunities = true;
+        if (params.searchCommunities === "false") inputOverride.searchCommunities = false;
+
+        const response = await fetch("/api/admin/apify/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            providerId: selectedProvider,
+            input: inputOverride,
+            waitForFinish: false, // Reddit scraper can take a while, run async
+            saveResults: true,
+          }),
+        });
+
+        const data = await response.json();
+        setResult({
+          success: data.success,
+          action: selectedAction,
+          result: data.success ? {
+            runId: data.runId,
+            datasetId: data.datasetId,
+            status: data.status,
+            itemCount: data.itemCount,
+            usageUsd: data.usageUsd,
+            inputUsed: inputOverride,
+            items: data.items?.slice(0, 5),
+            totalItems: data.items?.length,
+            hint: data.status === "RUNNING" ? "Scraper is running! Use 'Check Run Status' to monitor progress." : undefined,
+          } : undefined,
+          error: data.error,
+          timestamp: new Date().toISOString(),
+          itemCount: data.itemCount,
+          usageUsd: data.usageUsd,
+        });
       } else {
-        // Run scraper
+        // Run scraper (generic)
         let inputOverride = {};
         if (params.input_override) {
           try {
@@ -1056,6 +1227,7 @@ export default function AdminTestingPage() {
             post_url: "https://www.reddit.com/r/test/comments/test/", // Test URL
             account_id: selectedRedditAccount,
             provider_id: selectedProvider,
+            proxy_mode: proxyMode,
           }),
         });
 
@@ -1106,6 +1278,7 @@ export default function AdminTestingPage() {
             post_url: params.post_url,
             account_id: selectedRedditAccount,
             provider_id: selectedProvider,
+            proxy_mode: proxyMode,
           }),
         });
 
@@ -1151,6 +1324,7 @@ export default function AdminTestingPage() {
             body: params.body,
             account_id: selectedRedditAccount,
             provider_id: selectedProvider,
+            proxy_mode: proxyMode,
           }),
         });
 
@@ -1195,6 +1369,7 @@ export default function AdminTestingPage() {
             post_url: params.post_url,
             account_id: selectedRedditAccount,
             provider_id: selectedProvider,
+            proxy_mode: proxyMode,
           }),
         });
 
@@ -1240,6 +1415,7 @@ export default function AdminTestingPage() {
             body: params.body,
             account_id: selectedRedditAccount,
             provider_id: selectedProvider,
+            proxy_mode: proxyMode,
           }),
         });
 
@@ -1255,6 +1431,52 @@ export default function AdminTestingPage() {
         // Refresh accounts to see updated failure counts
         fetchRedditAccounts();
       }
+    } catch (error) {
+      setResult({
+        success: false,
+        action: selectedAction,
+        error: error instanceof Error ? error.message : "Request failed",
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleCrowdreplyAction = async () => {
+    try {
+      // Build params object
+      const requestParams: Record<string, unknown> = {};
+      
+      // Map form params to API params
+      if (params.content) requestParams.content = params.content;
+      if (params.threadUrl) requestParams.threadUrl = params.threadUrl;
+      if (params.project) requestParams.project = params.project;
+      if (params.scheduleAt) requestParams.scheduleAt = params.scheduleAt;
+      if (params.shouldAssignOP === "true") requestParams.shouldAssignOP = true;
+      if (params.taskId) requestParams.taskId = params.taskId;
+
+      const response = await fetch("/api/admin/test-crowdreply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: selectedAction,
+          providerId: selectedProvider,
+          params: requestParams,
+        }),
+      });
+
+      const data = await response.json();
+      setResult({
+        success: data.success,
+        action: selectedAction,
+        result: data.success ? {
+          ...data.result,
+          request_sent: data.request_sent,
+        } : data.result,
+        error: data.error,
+        timestamp: data.timestamp || new Date().toISOString(),
+      });
     } catch (error) {
       setResult({
         success: false,
@@ -1342,7 +1564,16 @@ export default function AdminTestingPage() {
               </div>
               {selectedProviderData && (
                 <div className="flex items-center gap-2 text-xs">
-                  {selectedProviderData.provider_type === "apify" ? (
+                  {isRedditScraperProvider ? (
+                    <>
+                      <MessageSquare className="w-3 h-3 text-orange-400" />
+                      <span className="text-orange-400">Reddit Scraper</span>
+                      <span className="text-gray-600">•</span>
+                      <span className="text-gray-500 font-mono truncate">
+                        {actorId}
+                      </span>
+                    </>
+                  ) : selectedProviderData.provider_type === "apify" ? (
                     <>
                       <Map className="w-3 h-3 text-orange-400" />
                       <span className="text-orange-400">Apify Scraper</span>
@@ -1350,8 +1581,8 @@ export default function AdminTestingPage() {
                       <span className="text-gray-500 font-mono">
                         {(() => {
                           const config = selectedProviderData.config as Record<string, unknown> | null;
-                          const actorId = config?.actor_id;
-                          return actorId ? String(actorId) : "No actor";
+                          const actId = config?.actor_id;
+                          return actId ? String(actId) : "No actor";
                         })()}
                       </span>
                     </>
@@ -1373,6 +1604,13 @@ export default function AdminTestingPage() {
                     <>
                       <Bot className="w-3 h-3 text-purple-400" />
                       <span className="text-purple-400">Stagehand (Reddit)</span>
+                      <span className="text-gray-600">•</span>
+                      <span className="text-gray-500 truncate">{selectedProviderData.api_url}</span>
+                    </>
+                  ) : selectedProviderData.provider_type === "crowdreply" ? (
+                    <>
+                      <MessagesSquare className="w-3 h-3 text-emerald-400" />
+                      <span className="text-emerald-400">CrowdReply (Reddit)</span>
                       <span className="text-gray-600">•</span>
                       <span className="text-gray-500 truncate">{selectedProviderData.api_url}</span>
                     </>
@@ -1456,6 +1694,46 @@ export default function AdminTestingPage() {
                       )}
                     </div>
                   ) : null;
+                })()}
+              </div>
+            )}
+
+            {/* Proxy Mode selector (for Stagehand only) */}
+            {isStagehandProvider && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <Wifi className="w-4 h-4 text-purple-400" />
+                  Proxy Mode
+                </label>
+                <div className="relative">
+                  <select
+                    value={proxyMode}
+                    onChange={(e) => setProxyMode(e.target.value as "browserbase" | "custom" | "none")}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-slate-700 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all appearance-none"
+                  >
+                    <option value="browserbase">Browserbase Proxies (Built-in)</option>
+                    <option value="custom">Custom Proxy (from account)</option>
+                    <option value="none">No Proxy (Direct)</option>
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
+                </div>
+                <p className="text-xs text-gray-500">
+                  {proxyMode === "browserbase" && "Uses Browserbase's managed residential proxies (US-based)"}
+                  {proxyMode === "custom" && "Uses the proxy configured in the Reddit account settings"}
+                  {proxyMode === "none" && "Direct connection without proxy (may be detected/blocked)"}
+                </p>
+                {proxyMode === "custom" && selectedRedditAccount && (() => {
+                  const account = redditAccounts.find(a => a.id === selectedRedditAccount);
+                  return account?.proxy ? (
+                    <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                      <p className="text-purple-400 text-xs font-medium mb-1">Custom Proxy:</p>
+                      <p className="text-gray-400 text-xs font-mono break-all">{account.proxy_masked}</p>
+                    </div>
+                  ) : (
+                    <p className="text-amber-400 text-xs">
+                      ⚠️ Selected account has no proxy configured - will use direct connection
+                    </p>
+                  );
                 })()}
               </div>
             )}
@@ -1550,35 +1828,77 @@ export default function AdminTestingPage() {
                 <p className="text-sm font-medium text-gray-300">Parameters</p>
                 {currentAction.params.map((param) => (
                   <div key={param.key} className="space-y-2">
-                    <label className="text-sm text-gray-400 flex items-center gap-2">
-                      {param.label}
-                      {param.required && (
-                        <span className="text-red-400 text-xs">*</span>
-                      )}
-                    </label>
-                    {param.type === "textarea" || param.type === "json" ? (
-                      <textarea
-                        value={params[param.key] || ""}
-                        onChange={(e) =>
-                          setParams({ ...params, [param.key]: e.target.value })
-                        }
-                        placeholder={param.type === "json" 
-                          ? '{"searchStringsArray": ["pizza"], "locationQuery": "Los Angeles, USA"}'
-                          : `Enter ${param.label.toLowerCase()}`
-                        }
-                        rows={param.type === "json" ? 8 : 6}
-                        className="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-slate-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all resize-none font-mono text-sm"
-                      />
+                    {param.type === "checkbox" ? (
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={params[param.key] === "true"}
+                          onChange={(e) =>
+                            setParams({ ...params, [param.key]: e.target.checked ? "true" : "false" })
+                          }
+                          className="w-5 h-5 rounded bg-slate-900/50 border border-slate-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
+                        />
+                        <span className="text-sm text-gray-400">{param.label}</span>
+                      </label>
+                    ) : param.type === "select" ? (
+                      <>
+                        <label className="text-sm text-gray-400 flex items-center gap-2">
+                          {param.label}
+                          {param.required && (
+                            <span className="text-red-400 text-xs">*</span>
+                          )}
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={params[param.key] || ""}
+                            onChange={(e) =>
+                              setParams({ ...params, [param.key]: e.target.value })
+                            }
+                            className="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-slate-700 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all appearance-none"
+                          >
+                            <option value="">Select {param.label.toLowerCase()}</option>
+                            {(param as { options?: { value: string; label: string }[] }).options?.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" />
+                        </div>
+                      </>
                     ) : (
-                      <input
-                        type={param.type}
-                        value={params[param.key] || ""}
-                        onChange={(e) =>
-                          setParams({ ...params, [param.key]: e.target.value })
-                        }
-                        placeholder={`Enter ${param.label.toLowerCase()}`}
-                        className="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-slate-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-                      />
+                      <>
+                        <label className="text-sm text-gray-400 flex items-center gap-2">
+                          {param.label}
+                          {param.required && (
+                            <span className="text-red-400 text-xs">*</span>
+                          )}
+                        </label>
+                        {param.type === "textarea" || param.type === "json" ? (
+                          <textarea
+                            value={params[param.key] || ""}
+                            onChange={(e) =>
+                              setParams({ ...params, [param.key]: e.target.value })
+                            }
+                            placeholder={param.type === "json" 
+                              ? '{"searchStringsArray": ["pizza"], "locationQuery": "Los Angeles, USA"}'
+                              : `Enter ${param.label.toLowerCase()}`
+                            }
+                            rows={param.type === "json" ? 8 : 6}
+                            className="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-slate-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all resize-none font-mono text-sm"
+                          />
+                        ) : (
+                          <input
+                            type={param.type}
+                            value={params[param.key] || ""}
+                            onChange={(e) =>
+                              setParams({ ...params, [param.key]: e.target.value })
+                            }
+                            placeholder={`Enter ${param.label.toLowerCase()}`}
+                            className="w-full px-4 py-3 rounded-xl bg-slate-900/50 border border-slate-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                          />
+                        )}
+                      </>
                     )}
                   </div>
                 ))}
@@ -1598,6 +1918,54 @@ export default function AdminTestingPage() {
                 <p className="text-xs text-gray-600">
                   Use Input Override to modify these values for this run only.
                 </p>
+              </div>
+            )}
+
+            {/* Show Reddit Scraper info */}
+            {isRedditScraperProvider && selectedProviderData && selectedAction === "run_reddit_scraper" && (
+              <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl space-y-3">
+                <p className="text-sm font-medium text-orange-400 flex items-center gap-2">
+                  <Map className="w-4 h-4" />
+                  Reddit Scraper
+                </p>
+                <div className="text-xs text-gray-400 space-y-1">
+                  <p>Actor: <span className="font-mono text-orange-300">{actorId}</span></p>
+                  <p>Default sort: <span className="text-gray-300">{(providerConfig?.default_input as Record<string, unknown>)?.searchSort as string || "hot"}</span></p>
+                  <p>Default time: <span className="text-gray-300">{(providerConfig?.default_input as Record<string, unknown>)?.searchTime as string || "week"}</span></p>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Enter search terms separated by commas. Empty fields use default config values.
+                </p>
+              </div>
+            )}
+
+            {/* Show CrowdReply info */}
+            {isCrowdreplyProvider && selectedProviderData && (
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-3">
+                <p className="text-sm font-medium text-emerald-400 flex items-center gap-2">
+                  <MessagesSquare className="w-4 h-4" />
+                  CrowdReply Configuration
+                </p>
+                {(() => {
+                  const config = selectedProviderData.config as Record<string, unknown> | null;
+                  const projectId = config?.project_id as string | undefined;
+                  return (
+                    <div className="space-y-2">
+                      {projectId ? (
+                        <p className="text-xs text-gray-400">
+                          Default Project ID: <span className="font-mono text-emerald-300">{projectId}</span>
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber-400">
+                          ⚠️ No default project ID configured. You&apos;ll need to provide one in the params or add it to the provider config.
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500">
+                        API Endpoint: <span className="font-mono">https://crowdreply.io/api/tasks</span>
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

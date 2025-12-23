@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getEffectiveUserId } from '@/lib/api/server-impersonation';
 
 // GET: List planned actions for user's businesses
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    
+    // Get effective user ID (supports admin impersonation)
+    const { userId, error: authError } = await getEffectiveUserId(request);
+    
+    if (authError || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -21,7 +24,7 @@ export async function GET(request: NextRequest) {
     const { data: businesses } = await supabase
       .from('businesses')
       .select('id')
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
     const businessIds = businesses?.map(b => b.id) || [];
 

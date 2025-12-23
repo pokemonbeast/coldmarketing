@@ -137,7 +137,8 @@ export async function insertVerifiedLeads(
   leadListId: string,
   leads: ExtractedLead[],
   verificationResults: EmailVerificationResult[],
-  sourceScrapeId: string | null
+  sourceScrapeId: string | null,
+  businessId?: string | null
 ): Promise<InsertLeadsResult> {
   const result: InsertLeadsResult = {
     inserted: 0,
@@ -175,6 +176,7 @@ export async function insertVerifiedLeads(
       verification_state: verification?.state || 'pending',
       verification_data: verification?.data || null,
       source_scrape_id: sourceScrapeId,
+      business_id: businessId || null,
     };
   });
 
@@ -231,7 +233,8 @@ export async function processAndSaveVerifiedLeads(
   supabase: SupabaseClient,
   leads: ExtractedLead[],
   verificationResults: EmailVerificationResult[],
-  sourceScrapeId: string | null
+  sourceScrapeId: string | null,
+  businessId?: string | null
 ): Promise<{
   totalProcessed: number;
   totalInserted: number;
@@ -294,7 +297,8 @@ export async function processAndSaveVerifiedLeads(
       leadList.id,
       groupLeads,
       verificationResults,
-      sourceScrapeId
+      sourceScrapeId,
+      businessId
     );
 
     result.totalInserted += insertResult.inserted;
@@ -364,6 +368,7 @@ export async function getLeadListStats(
     byIndustry,
   };
 }
+
 
 
 

@@ -5,6 +5,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import { useImpersonation } from "@/lib/contexts/ImpersonationContext";
+import { ImpersonationQuickAccess } from "@/components/ImpersonationBanner";
+import { BusinessLeadsBanner } from "@/components/BusinessLeadsBanner";
 import {
   LayoutDashboard,
   Building2,
@@ -17,6 +20,9 @@ import {
   X,
   ChevronRight,
   Sparkles,
+  Shield,
+  Search,
+  Mail,
 } from "lucide-react";
 
 interface Profile {
@@ -26,6 +32,7 @@ interface Profile {
   subscription_status: string | null;
   subscription_plan_name: string | null;
   subscription_actions_limit: number | null;
+  unread_emails_count: number | null;
 }
 
 interface ActionUsage {
@@ -36,7 +43,9 @@ interface ActionUsage {
 const NAV_ITEMS = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
   { href: "/dashboard/businesses", icon: Building2, label: "Businesses" },
+  { href: "/dashboard/research", icon: Search, label: "Live Research" },
   { href: "/dashboard/actions", icon: Zap, label: "Action Queue" },
+  { href: "/dashboard/emails", icon: Mail, label: "E-Mails", showBadge: true },
   { href: "/dashboard/history", icon: History, label: "History" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
   { href: "/dashboard/billing", icon: CreditCard, label: "Billing" },
@@ -55,6 +64,8 @@ export default function DashboardLayoutContent({
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const { isImpersonating, impersonatedUser, getEffectiveUserId } = useImpersonation();
+
   const fetchData = useCallback(async () => {
     const supabase = createClient();
     
@@ -65,23 +76,26 @@ export default function DashboardLayoutContent({
       return;
     }
 
-    // Fetch profile
+    // Use impersonated user ID if impersonating, otherwise use logged in user
+    const effectiveUserId = getEffectiveUserId() || user.id;
+
+    // Fetch profile for the effective user
     const { data: profileData } = await supabase
       .from("profiles")
-      .select("id, email, full_name, subscription_status, subscription_plan_name, subscription_actions_limit")
-      .eq("id", user.id)
+      .select("id, email, full_name, subscription_status, subscription_plan_name, subscription_actions_limit, unread_emails_count")
+      .eq("id", effectiveUserId)
       .single();
 
     if (profileData) {
       setProfile(profileData);
     }
 
-    // Fetch current usage
+    // Fetch current usage for the effective user
     const today = new Date().toISOString().split("T")[0];
     const { data: usageData } = await supabase
       .from("action_usage")
       .select("actions_used, actions_limit")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .lte("period_start", today)
       .gte("period_end", today)
       .single();
@@ -91,11 +105,11 @@ export default function DashboardLayoutContent({
     }
 
     setLoading(false);
-  }, [router]);
+  }, [router, getEffectiveUserId]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, isImpersonating, impersonatedUser]);
 
   // Refetch data after checkout success (with polling for webhook processing)
   useEffect(() => {
@@ -185,6 +199,8 @@ export default function DashboardLayoutContent({
             {NAV_ITEMS.map((item) => {
               const isActive = pathname === item.href || 
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              const showBadge = 'showBadge' in item && item.showBadge;
+              const unreadCount = profile?.unread_emails_count || 0;
               
               return (
                 <Link
@@ -199,7 +215,12 @@ export default function DashboardLayoutContent({
                 >
                   <item.icon className="w-5 h-5" />
                   <span className="font-medium">{item.label}</span>
-                  {isActive && (
+                  {showBadge && unreadCount > 0 && (
+                    <span className="ml-auto px-2 py-0.5 text-xs font-bold rounded-full bg-red-500 text-white">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                  {isActive && !showBadge && (
                     <ChevronRight className="w-4 h-4 ml-auto" />
                   )}
                 </Link>
@@ -234,11 +255,24 @@ export default function DashboardLayoutContent({
 
           {/* User Section */}
           <div className="p-4 border-t border-slate-800">
+            {/* Impersonation indicator */}
+            {isImpersonating && (
+              <div className="mb-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                <div className="flex items-center gap-2 text-amber-400 text-xs">
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Viewing as user</span>
+                </div>
+              </div>
+            )}
             {loading ? (
               <div className="h-12 bg-slate-800 rounded-xl animate-pulse" />
             ) : profile ? (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  isImpersonating 
+                    ? "bg-gradient-to-br from-amber-500 to-orange-600" 
+                    : "bg-gradient-to-br from-blue-500 to-purple-600"
+                }`}>
                   <span className="text-white font-semibold">
                     {profile.full_name?.[0] || profile.email[0].toUpperCase()}
                   </span>
@@ -251,13 +285,15 @@ export default function DashboardLayoutContent({
                     {profile.subscription_plan_name || "No Plan"}
                   </p>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                  title="Logout"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
+                {!isImpersonating && (
+                  <button
+                    onClick={handleLogout}
+                    className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    title="Logout"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             ) : null}
           </div>
@@ -278,14 +314,21 @@ export default function DashboardLayoutContent({
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="lg:pl-64 pt-16 lg:pt-0 min-h-screen">
+      <main className={`lg:pl-64 pt-16 lg:pt-0 min-h-screen ${isImpersonating ? "mt-12" : ""}`}>
         <div className="p-6 lg:p-8">
+          {/* Global Business Leads Banner */}
+          <BusinessLeadsBanner className="mb-6" />
+          
           {children}
         </div>
       </main>
+
+      {/* Impersonation Quick Access */}
+      <ImpersonationQuickAccess />
     </div>
   );
 }
+
 
 
 

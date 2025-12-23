@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getEffectiveUserId } from '@/lib/api/server-impersonation';
 
 // POST: Approve multiple actions at once
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    
+    // Get effective user ID (supports admin impersonation)
+    const { userId, error: authError } = await getEffectiveUserId(request);
+    
+    if (authError || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -21,7 +24,7 @@ export async function POST(request: NextRequest) {
     const { data: businesses } = await supabase
       .from('businesses')
       .select('id')
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
     const businessIds = businesses?.map(b => b.id) || [];
 
@@ -45,7 +48,7 @@ export async function POST(request: NextRequest) {
     const { data: usage } = await supabase
       .from('action_usage')
       .select('actions_used, actions_limit')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .lte('period_start', today)
       .gte('period_end', today)
       .single();
@@ -80,9 +83,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to approve actions' }, { status: 500 });
   }
 }
-
-
-
-
-
-

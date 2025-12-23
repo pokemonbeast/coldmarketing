@@ -174,10 +174,18 @@ export function getActionsLimitForPrice(priceId: string): number {
 
 /**
  * Get business limit for a plan name
+ * Matches by full name (e.g., "Growth Plan") or short name (e.g., "Growth", "Pro")
  */
 export function getBusinessLimitForPlan(planName: string | null): number {
   if (!planName) return 0;
-  const plan = STRIPE_PLANS.find((p) => p.name === planName);
+  const normalizedName = planName.toLowerCase().trim();
+  
+  const plan = STRIPE_PLANS.find((p) => 
+    p.name.toLowerCase() === normalizedName ||
+    p.name.toLowerCase().startsWith(normalizedName) ||
+    p.id.toLowerCase() === normalizedName
+  );
+  
   return plan?.businessLimit ?? 0;
 }
 

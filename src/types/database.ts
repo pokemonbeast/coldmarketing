@@ -99,43 +99,43 @@ export type Database = {
       }
       apify_scrape_results: {
         Row: {
-          id: string
-          provider_id: string
           actor_id: string
-          run_id: string
-          dataset_id: string
-          input_config: Json
-          results_data: Json
-          item_count: number
-          usage_usd: number | null
-          status: string
           created_at: string
+          dataset_id: string
+          id: string
+          input_config: Json
+          item_count: number
+          provider_id: string
+          results_data: Json
+          run_id: string
+          status: string
+          usage_usd: number | null
         }
         Insert: {
-          id?: string
-          provider_id: string
           actor_id: string
-          run_id: string
-          dataset_id: string
-          input_config?: Json
-          results_data?: Json
-          item_count?: number
-          usage_usd?: number | null
-          status?: string
           created_at?: string
+          dataset_id: string
+          id?: string
+          input_config?: Json
+          item_count?: number
+          provider_id: string
+          results_data?: Json
+          run_id: string
+          status?: string
+          usage_usd?: number | null
         }
         Update: {
-          id?: string
-          provider_id?: string
           actor_id?: string
-          run_id?: string
-          dataset_id?: string
-          input_config?: Json
-          results_data?: Json
-          item_count?: number
-          usage_usd?: number | null
-          status?: string
           created_at?: string
+          dataset_id?: string
+          id?: string
+          input_config?: Json
+          item_count?: number
+          provider_id?: string
+          results_data?: Json
+          run_id?: string
+          status?: string
+          usage_usd?: number | null
         }
         Relationships: [
           {
@@ -144,7 +144,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "api_providers"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       business_platform_configs: {
@@ -201,11 +201,81 @@ export type Database = {
           },
         ]
       }
+      business_research_runs: {
+        Row: {
+          apify_dataset_id: string | null
+          apify_run_id: string | null
+          business_id: string
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          item_count: number | null
+          keywords_used: string[]
+          provider_slug: string
+          run_type: string
+          simulated_posts: Json | null
+          started_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          apify_dataset_id?: string | null
+          apify_run_id?: string | null
+          business_id: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          item_count?: number | null
+          keywords_used?: string[]
+          provider_slug: string
+          run_type: string
+          simulated_posts?: Json | null
+          started_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          apify_dataset_id?: string | null
+          apify_run_id?: string | null
+          business_id?: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          item_count?: number | null
+          keywords_used?: string[]
+          provider_slug?: string
+          run_type?: string
+          simulated_posts?: Json | null
+          started_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_research_runs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_research_runs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           auto_approve: boolean | null
           created_at: string | null
           description: string | null
+          gmb_targets: Json | null
           id: string
           industry: string | null
           is_active: boolean | null
@@ -221,6 +291,7 @@ export type Database = {
           auto_approve?: boolean | null
           created_at?: string | null
           description?: string | null
+          gmb_targets?: Json | null
           id?: string
           industry?: string | null
           is_active?: boolean | null
@@ -236,6 +307,7 @@ export type Database = {
           auto_approve?: boolean | null
           created_at?: string | null
           description?: string | null
+          gmb_targets?: Json | null
           id?: string
           industry?: string | null
           is_active?: boolean | null
@@ -317,6 +389,115 @@ export type Database = {
           },
         ]
       }
+      email_replies: {
+        Row: {
+          id: string
+          user_id: string
+          campaign_id: number
+          lead_email: string
+          lead_first_name: string | null
+          lead_last_name: string | null
+          email_account: string
+          subject: string | null
+          body: string
+          message_id: string | null
+          thread_id: string | null
+          step_number: number | null
+          is_read: boolean
+          received_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          campaign_id: number
+          lead_email: string
+          lead_first_name?: string | null
+          lead_last_name?: string | null
+          email_account: string
+          subject?: string | null
+          body: string
+          message_id?: string | null
+          thread_id?: string | null
+          step_number?: number | null
+          is_read?: boolean
+          received_at: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          campaign_id?: number
+          lead_email?: string
+          lead_first_name?: string | null
+          lead_last_name?: string | null
+          email_account?: string
+          subject?: string | null
+          body?: string
+          message_id?: string | null
+          thread_id?: string | null
+          step_number?: number | null
+          is_read?: boolean
+          received_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_replies_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_verification_queue: {
+        Row: {
+          created_at: string
+          email_count: number
+          emails_to_verify: Json
+          error_message: string | null
+          id: string
+          processed_at: string | null
+          scrape_result_id: string
+          status: string
+          verification_dataset_id: string | null
+          verification_run_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_count?: number
+          emails_to_verify?: Json
+          error_message?: string | null
+          id?: string
+          processed_at?: string | null
+          scrape_result_id: string
+          status?: string
+          verification_dataset_id?: string | null
+          verification_run_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_count?: number
+          emails_to_verify?: Json
+          error_message?: string | null
+          id?: string
+          processed_at?: string | null
+          scrape_result_id?: string
+          status?: string
+          verification_dataset_id?: string | null
+          verification_run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_verification_queue_scrape_result_id_fkey"
+            columns: ["scrape_result_id"]
+            isOneToOne: true
+            referencedRelation: "apify_scrape_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       executed_actions: {
         Row: {
           business_id: string
@@ -392,6 +573,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      lead_lists: {
+        Row: {
+          city: string
+          country_code: string
+          created_at: string
+          id: string
+          industry: string
+          lead_count: number
+          lead_type: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          country_code: string
+          created_at?: string
+          id?: string
+          industry: string
+          lead_count?: number
+          lead_type?: string
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          country_code?: string
+          created_at?: string
+          id?: string
+          industry?: string
+          lead_count?: number
+          lead_type?: string
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       orders: {
         Row: {
@@ -581,6 +798,7 @@ export type Database = {
           subscription_current_period_end: string | null
           subscription_plan_name: string | null
           subscription_status: string | null
+          unread_emails_count: number | null
           updated_at: string
         }
         Insert: {
@@ -595,6 +813,7 @@ export type Database = {
           subscription_current_period_end?: string | null
           subscription_plan_name?: string | null
           subscription_status?: string | null
+          unread_emails_count?: number | null
           updated_at?: string
         }
         Update: {
@@ -609,9 +828,156 @@ export type Database = {
           subscription_current_period_end?: string | null
           subscription_plan_name?: string | null
           subscription_status?: string | null
+          unread_emails_count?: number | null
           updated_at?: string
         }
         Relationships: []
+      }
+      reachinbox_campaigns: {
+        Row: {
+          id: string
+          user_id: string
+          campaign_id: number
+          campaign_name: string
+          status: string
+          email_accounts: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          campaign_id: number
+          campaign_name: string
+          status?: string
+          email_accounts?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          campaign_id?: number
+          campaign_name?: string
+          status?: string
+          email_accounts?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reachinbox_campaigns_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reddit_accounts: {
+        Row: {
+          browserbase_context_created_at: string | null
+          browserbase_context_id: string | null
+          cookies: string | null
+          cookies_updated_at: string | null
+          failure_count: number | null
+          id: string
+          is_active: boolean | null
+          last_used_at: string | null
+          password: string
+          proxy: string
+          token_v2: string | null
+          username: string
+        }
+        Insert: {
+          browserbase_context_created_at?: string | null
+          browserbase_context_id?: string | null
+          cookies?: string | null
+          cookies_updated_at?: string | null
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          password: string
+          proxy: string
+          token_v2?: string | null
+          username: string
+        }
+        Update: {
+          browserbase_context_created_at?: string | null
+          browserbase_context_id?: string | null
+          cookies?: string | null
+          cookies_updated_at?: string | null
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          password?: string
+          proxy?: string
+          token_v2?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
+      research_results: {
+        Row: {
+          business_id: string
+          created_at: string
+          external_id: string | null
+          id: string
+          platform: string
+          relevance_score: number | null
+          research_run_id: string
+          result_data: Json
+          reveal_at: string
+          score: number | null
+          title: string | null
+          url: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          platform: string
+          relevance_score?: number | null
+          research_run_id: string
+          result_data: Json
+          reveal_at: string
+          score?: number | null
+          title?: string | null
+          url?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          platform?: string
+          relevance_score?: number | null
+          research_run_id?: string
+          result_data?: Json
+          reveal_at?: string
+          score?: number | null
+          title?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_results_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_results_research_run_id_fkey"
+            columns: ["research_run_id"]
+            isOneToOne: false
+            referencedRelation: "business_research_runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scraped_content_pool: {
         Row: {
@@ -865,164 +1231,6 @@ export type Database = {
         }
         Relationships: []
       }
-      lead_lists: {
-        Row: {
-          id: string
-          lead_type: string
-          industry: string
-          city: string
-          state: string
-          country_code: string
-          lead_count: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          lead_type?: string
-          industry: string
-          city: string
-          state: string
-          country_code: string
-          lead_count?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          lead_type?: string
-          industry?: string
-          city?: string
-          state?: string
-          country_code?: string
-          lead_count?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      verified_leads: {
-        Row: {
-          id: string
-          lead_list_id: string
-          email: string
-          domain: string
-          company_name: string | null
-          lead_type: string
-          phone: string | null
-          website: string | null
-          address: string | null
-          city: string | null
-          state: string | null
-          country_code: string
-          industry: string | null
-          verification_state: string
-          verification_data: Json | null
-          source_scrape_id: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          lead_list_id: string
-          email: string
-          domain: string
-          company_name?: string | null
-          lead_type?: string
-          phone?: string | null
-          website?: string | null
-          address?: string | null
-          city?: string | null
-          state?: string | null
-          country_code: string
-          industry?: string | null
-          verification_state?: string
-          verification_data?: Json | null
-          source_scrape_id?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          lead_list_id?: string
-          email?: string
-          domain?: string
-          company_name?: string | null
-          lead_type?: string
-          phone?: string | null
-          website?: string | null
-          address?: string | null
-          city?: string | null
-          state?: string | null
-          country_code?: string
-          industry?: string | null
-          verification_state?: string
-          verification_data?: Json | null
-          source_scrape_id?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "verified_leads_lead_list_id_fkey"
-            columns: ["lead_list_id"]
-            isOneToOne: false
-            referencedRelation: "lead_lists"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "verified_leads_source_scrape_id_fkey"
-            columns: ["source_scrape_id"]
-            isOneToOne: false
-            referencedRelation: "apify_scrape_results"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      email_verification_queue: {
-        Row: {
-          id: string
-          scrape_result_id: string
-          emails_to_verify: Json
-          email_count: number
-          status: string
-          verification_run_id: string | null
-          verification_dataset_id: string | null
-          error_message: string | null
-          created_at: string
-          processed_at: string | null
-        }
-        Insert: {
-          id?: string
-          scrape_result_id: string
-          emails_to_verify?: Json
-          email_count?: number
-          status?: string
-          verification_run_id?: string | null
-          verification_dataset_id?: string | null
-          error_message?: string | null
-          created_at?: string
-          processed_at?: string | null
-        }
-        Update: {
-          id?: string
-          scrape_result_id?: string
-          emails_to_verify?: Json
-          email_count?: number
-          status?: string
-          verification_run_id?: string | null
-          verification_dataset_id?: string | null
-          error_message?: string | null
-          created_at?: string
-          processed_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "email_verification_queue_scrape_result_id_fkey"
-            columns: ["scrape_result_id"]
-            isOneToOne: false
-            referencedRelation: "apify_scrape_results"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       subscription_plans: {
         Row: {
           created_at: string
@@ -1053,6 +1261,48 @@ export type Database = {
           name?: string
           price_monthly?: number | null
           price_yearly?: number | null
+        }
+        Relationships: []
+      }
+      twitter_accounts: {
+        Row: {
+          email: string
+          failure_count: number | null
+          id: string
+          is_active: boolean | null
+          last_used_at: string | null
+          login_cookie: string | null
+          login_cookie_updated_at: string | null
+          password: string
+          proxy: string
+          totp_secret: string | null
+          username: string
+        }
+        Insert: {
+          email: string
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          login_cookie?: string | null
+          login_cookie_updated_at?: string | null
+          password: string
+          proxy: string
+          totp_secret?: string | null
+          username: string
+        }
+        Update: {
+          email?: string
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          login_cookie?: string | null
+          login_cookie_updated_at?: string | null
+          password?: string
+          proxy?: string
+          totp_secret?: string | null
+          username?: string
         }
         Relationships: []
       }
@@ -1119,6 +1369,441 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      verified_leads: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verified_leads_lead_list_id_fkey"
+            columns: ["lead_list_id"]
+            isOneToOne: false
+            referencedRelation: "lead_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verified_leads_source_scrape_id_fkey"
+            columns: ["source_scrape_id"]
+            isOneToOne: false
+            referencedRelation: "apify_scrape_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verified_leads_au: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      verified_leads_ca: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      verified_leads_de: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      verified_leads_other: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      verified_leads_uk: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      verified_leads_us: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -1297,228 +1982,16 @@ export const Constants = {
   },
 } as const
 
-// Type aliases for convenience
-export type Business = Tables<'businesses'>
-export type Profile = Tables<'profiles'>
-export type UserSubscription = Tables<'user_subscriptions'>
-export type SubscriptionPlan = Tables<'subscription_plans'>
-export type ActionUsage = Tables<'action_usage'>
-export type PlannedAction = Tables<'planned_actions'>
-export type ExecutedAction = Tables<'executed_actions'>
-export type ContentEmbedding = Tables<'content_embeddings'>
-export type ScrapedContentPool = Tables<'scraped_content_pool'>
-export type ScraperConfig = Tables<'scraper_configs'>
-export type ScraperRunLog = Tables<'scraper_run_logs'>
-export type ApiProvider = Tables<'api_providers'>
-export type Service = Tables<'services'>
-export type ServiceMapping = Tables<'service_mappings'>
-export type BusinessPlatformConfig = Tables<'business_platform_configs'>
-export type Order = Tables<'orders'>
-
-// Manual type for Apify scrape results (not yet in Supabase types)
-export interface ApifyScrapeResult {
-  id: string;
-  provider_id: string;
-  actor_id: string;
-  run_id: string;
-  dataset_id: string;
-  input_config: Record<string, unknown>;
-  results_data: unknown[];
-  item_count: number;
-  usage_usd: number | null;
-  status: string;
-  created_at: string;
-}
-
-// Reddit Accounts - Credentials for automated commenting via reddapi.online
-export interface RedditAccount {
-  id: string;
-  username: string;
-  password: string;
-  proxy: string; // Format: hostname:port:user:pass
-  is_active: boolean;
-  failure_count: number;
-  last_used_at: string | null;
-}
-
-export interface RedditAccountInsert {
-  id?: string;
-  username: string;
-  password: string;
-  proxy: string;
-  is_active?: boolean;
-  failure_count?: number;
-  last_used_at?: string | null;
-}
-
-export interface RedditAccountUpdate {
-  id?: string;
-  username?: string;
-  password?: string;
-  proxy?: string;
-  is_active?: boolean;
-  failure_count?: number;
-  last_used_at?: string | null;
-}
-
-// Twitter Accounts - Credentials for automated tweeting/DMs via twitterapi.io
-export interface TwitterAccount {
-  id: string;
-  username: string;
-  email: string;
-  password: string;
-  proxy: string; // Format: http://username:password@ip:port
-  totp_secret: string | null; // For 2FA accounts
-  login_cookie: string | null; // Cached session cookie
-  login_cookie_updated_at: string | null;
-  is_active: boolean;
-  failure_count: number;
-  last_used_at: string | null;
-}
-
-export interface TwitterAccountInsert {
-  id?: string;
-  username: string;
-  email: string;
-  password: string;
-  proxy: string;
-  totp_secret?: string | null;
-  login_cookie?: string | null;
-  login_cookie_updated_at?: string | null;
-  is_active?: boolean;
-  failure_count?: number;
-  last_used_at?: string | null;
-}
-
-export interface TwitterAccountUpdate {
-  id?: string;
-  username?: string;
-  email?: string;
-  password?: string;
-  proxy?: string;
-  totp_secret?: string | null;
-  login_cookie?: string | null;
-  login_cookie_updated_at?: string | null;
-  is_active?: boolean;
-  failure_count?: number;
-  last_used_at?: string | null;
-}
-
-// Lead Lists - Groups verified leads by type + industry + location
-export interface LeadList {
-  id: string;
-  lead_type: 'business' | 'person';
-  industry: string;
-  city: string;
-  state: string;
-  country_code: string;
-  lead_count: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface LeadListInsert {
-  id?: string;
-  lead_type: 'business' | 'person';
-  industry: string;
-  city: string;
-  state: string;
-  country_code: string;
-  lead_count?: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-// Verified Leads - Individual verified email contacts (partitioned by country_code)
-export interface VerifiedLead {
-  id: string;
-  lead_list_id: string;
-  email: string;
-  domain: string;
-  company_name: string | null;
-  lead_type: 'business' | 'person';
-  phone: string | null;
-  website: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  country_code: string;
-  industry: string | null;
-  verification_state: string;
-  verification_data: Record<string, unknown> | null;
-  source_scrape_id: string | null;
-  created_at: string;
-}
-
-export interface VerifiedLeadInsert {
-  id?: string;
-  lead_list_id: string;
-  email: string;
-  domain: string;
-  company_name?: string | null;
-  lead_type?: 'business' | 'person';
-  phone?: string | null;
-  website?: string | null;
-  address?: string | null;
-  city?: string | null;
-  state?: string | null;
-  country_code: string;
-  industry?: string | null;
-  verification_state?: string;
-  verification_data?: Record<string, unknown> | null;
-  source_scrape_id?: string | null;
-  created_at?: string;
-}
-
-// Email Verification Queue - Tracks verification jobs for async processing
-export interface EmailVerificationQueue {
-  id: string;
-  scrape_result_id: string;
-  emails_to_verify: Array<{ email: string; domain: string }>;
-  email_count: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  verification_run_id: string | null;
-  verification_dataset_id: string | null;
-  error_message: string | null;
-  created_at: string;
-  processed_at: string | null;
-}
-
-export interface EmailVerificationQueueInsert {
-  id?: string;
-  scrape_result_id: string;
-  emails_to_verify?: Array<{ email: string; domain: string }>;
-  email_count?: number;
-  status?: 'pending' | 'processing' | 'completed' | 'failed';
-  verification_run_id?: string | null;
-  verification_dataset_id?: string | null;
-  error_message?: string | null;
-  created_at?: string;
-  processed_at?: string | null;
-}
-
-// Lead type enum
-export type LeadType = 'business' | 'person';
-
-// Verification status enum
-export type VerificationStatus = 'pending' | 'processing' | 'completed' | 'failed';
-
-// Enum type aliases
-export type PlatformType = Database['public']['Enums']['platform_type']
-export type ScraperProvider = Database['public']['Enums']['scraper_provider']
-export type ActionStatus = Database['public']['Enums']['action_status']
-export type SubscriptionStatus = Database['public']['Enums']['subscription_status']
-export type UserRole = Database['public']['Enums']['user_role']
-
-// Stripe Plan Types
+// Stripe Plans Configuration
 export interface StripePlan {
   id: string;
   name: string;
-  price: number;
   priceId: string;
+  price: number;
+  interval: 'month' | 'year';
+  features: string[];
   actionsPerMonth: number;
   businessLimit: number;
-  features: string[];
   popular?: boolean;
 }
 
@@ -1526,68 +1999,107 @@ export const STRIPE_PLANS: StripePlan[] = [
   {
     id: 'starter',
     name: 'Starter Plan',
-    price: 79.95,
     priceId: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID || '',
-    actionsPerMonth: 70,
-    businessLimit: 1,
+    price: 29,
+    interval: 'month',
     features: [
-      '70 Monthly Actions',
-      '1 Business Profile',
-      'Reddit Platform',
-      'AI Comment Generation',
-      'Email Support',
+      '50 AI-powered comments/month',
+      '1 business profile',
+      'Reddit monitoring',
+      'Basic analytics',
+      'Email support',
     ],
+    actionsPerMonth: 50,
+    businessLimit: 1,
   },
   {
     id: 'growth',
     name: 'Growth Plan',
-    price: 199.95,
     priceId: process.env.NEXT_PUBLIC_STRIPE_GROWTH_PRICE_ID || '',
+    price: 79,
+    interval: 'month',
+    features: [
+      '200 AI-powered comments/month',
+      '3 business profiles',
+      'Reddit + Twitter monitoring',
+      'Advanced analytics',
+      'Priority support',
+      'Custom tone of voice',
+    ],
     actionsPerMonth: 200,
     businessLimit: 3,
-    features: [
-      '200 Monthly Actions',
-      '3 Business Profiles',
-      'All Platforms',
-      'AI Comment Generation',
-      'Priority Support',
-      'Analytics Dashboard',
-    ],
     popular: true,
   },
   {
-    id: 'pro',
+    id: 'scale',
     name: 'Scale Plan',
-    price: 395.95,
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || '',
-    actionsPerMonth: 450,
-    businessLimit: 10,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID || '',
+    price: 199,
+    interval: 'month',
     features: [
-      '450 Monthly Actions',
-      '10 Business Profiles',
-      'All Platforms',
-      'AI Comment Generation',
-      'Priority Support',
-      'Advanced Analytics',
-      'API Access',
+      '500 AI-powered comments/month',
+      '10 business profiles',
+      'All platform monitoring',
+      'Premium analytics & reports',
+      'Dedicated account manager',
+      'API access',
+      'White-label options',
     ],
+    actionsPerMonth: 500,
+    businessLimit: 10,
   },
   {
     id: 'enterprise',
     name: 'Enterprise Plan',
-    price: 995.95,
     priceId: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID || '',
-    actionsPerMonth: 1200,
-    businessLimit: 999,
+    price: 499,
+    interval: 'month',
     features: [
-      '1200 Monthly Actions',
-      'Unlimited Business Profiles',
-      'All Platforms',
-      'AI Comment Generation',
-      'Dedicated Support',
-      'Custom Analytics',
-      'API Access',
-      'White Label Options',
+      'Unlimited AI-powered comments',
+      'Unlimited business profiles',
+      'All platform monitoring',
+      'Custom integrations',
+      'Dedicated support team',
+      'SLA guarantees',
+      'On-premise deployment option',
     ],
+    actionsPerMonth: -1, // Unlimited
+    businessLimit: -1, // Unlimited
   },
 ]
+
+// Business Lead Finder Target Type
+export interface GMBTarget {
+  industry: string;
+  country: 'US' | 'CA' | 'GB' | 'DE' | 'AU';
+  countryName: string;
+  state: string | null;      // null = "Anywhere in Country"
+  stateCode: string | null;
+  city: string | null;       // null = "Anywhere in State/Country"
+  // Status tracking (set by backend after scraping)
+  fulfilled_at?: string | null;    // When this target was fulfilled (ISO timestamp)
+  cache_id?: string | null;        // Reference to gmb_scrape_cache entry used
+  result_count?: number | null;    // How many results were found
+}
+
+// Business type - uses the Row type from businesses table
+export type Business = Database['public']['Tables']['businesses']['Row'];
+
+// Profile type alias
+export type Profile = Database['public']['Tables']['profiles']['Row'];
+
+// Subscription types
+export type UserSubscription = Database['public']['Tables']['user_subscriptions']['Row'];
+export type SubscriptionPlan = Database['public']['Tables']['subscription_plans']['Row'];
+
+// API Provider type
+export type ApiProvider = Database['public']['Tables']['api_providers']['Row'];
+
+// Scraper types
+export type ScraperConfig = Database['public']['Tables']['scraper_configs']['Row'];
+export type PlatformType = Database['public']['Enums']['platform_type'];
+export type ScraperProvider = Database['public']['Enums']['scraper_provider'];
+
+// Service types
+export type Service = Database['public']['Tables']['services']['Row'];
+export type ServiceMapping = Database['public']['Tables']['service_mappings']['Row'];

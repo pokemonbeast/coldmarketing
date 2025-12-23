@@ -5,6 +5,18 @@
     {
       "path": "/api/admin/orders/poll",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/research",
+      "schedule": "0 0 * * 0"
+    },
+    {
+      "path": "/api/cron/gmb-research",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-reachinbox",
+      "schedule": "0 3 * * *"
     }
   ]
 }

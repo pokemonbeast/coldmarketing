@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Outfit, Space_Mono } from "next/font/google";
 import "./globals.css";
+import { ImpersonationProvider } from "@/lib/contexts/ImpersonationContext";
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -27,7 +29,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${outfit.variable} ${spaceMono.variable}`}>
-      <body className="antialiased font-outfit">{children}</body>
+      <body className="antialiased font-outfit">
+        <ImpersonationProvider>
+          <ImpersonationBanner />
+          {children}
+        </ImpersonationProvider>
+      </body>
     </html>
   );
 }

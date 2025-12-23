@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useImpersonation } from "@/lib/contexts/ImpersonationContext";
 import {
   Users,
   Search,
@@ -11,6 +13,8 @@ import {
   Edit,
   Loader2,
   RefreshCw,
+  LogIn,
+  UserCheck,
 } from "lucide-react";
 import type { Profile, UserSubscription, SubscriptionPlan } from "@/types/database";
 
@@ -28,6 +32,10 @@ export default function AdminUsersPage() {
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
   const [overrideReason, setOverrideReason] = useState("");
   const [updating, setUpdating] = useState(false);
+  const [impersonating, setImpersonating] = useState<string | null>(null);
+
+  const router = useRouter();
+  const { startImpersonation } = useImpersonation();
 
   const fetchData = async () => {
     setLoading(true);
@@ -133,6 +141,44 @@ export default function AdminUsersPage() {
         return "bg-blue-500/20 text-blue-400 border-blue-500/30";
       default:
         return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+    }
+  };
+
+  const handleImpersonate = async (user: UserWithSubscription) => {
+    if (user.role === "admin") {
+      alert("Cannot impersonate admin accounts");
+      return;
+    }
+
+    setImpersonating(user.id);
+
+    try {
+      const response = await fetch("/api/admin/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to start impersonation");
+      }
+
+      // Start impersonation in context
+      startImpersonation(
+        data.impersonation.impersonatedUser,
+        data.impersonation.adminId,
+        data.impersonation.adminEmail
+      );
+
+      // Navigate to user's dashboard
+      router.push("/dashboard");
+    } catch (error) {
+      console.error("Impersonation error:", error);
+      alert(error instanceof Error ? error.message : "Failed to impersonate user");
+    } finally {
+      setImpersonating(null);
     }
   };
 
@@ -264,13 +310,30 @@ export default function AdminUsersPage() {
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="py-4 px-6 text-right">
-                      <button
-                        onClick={() => openPlanModal(user)}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-sm"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Edit Plan
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {user.role !== "admin" && (
+                          <button
+                            onClick={() => handleImpersonate(user)}
+                            disabled={impersonating === user.id}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Sign in as this user"
+                          >
+                            {impersonating === user.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <LogIn className="w-4 h-4" />
+                            )}
+                            <span className="hidden sm:inline">Sign In As</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => openPlanModal(user)}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-sm"
+                        >
+                          <Edit className="w-4 h-4" />
+                          <span className="hidden sm:inline">Edit Plan</span>
+                        </button>
+                      </div>
                     </td>
                   </motion.tr>
                 ))}

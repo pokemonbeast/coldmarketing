@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { constructWebhookEvent, getActionsLimitForPrice, getPlanByPriceId } from '@/lib/services/stripe';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createUserCampaign } from '@/lib/services/reachinbox-campaign';
 
 // Lazy initialization to avoid build-time errors when env vars are not available
 let supabaseAdminClient: SupabaseClient | null = null;
@@ -196,6 +197,30 @@ async function updateUserSubscription(
     );
 
   console.log(`Subscription updated for user ${userId}: ${status}`);
+
+  // If subscription is now active, create ReachInbox campaign
+  if (status === 'active') {
+    try {
+      // Get user profile for name
+      const { data: profile } = await getSupabaseAdmin()
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', userId)
+        .single();
+
+      const userName = profile?.full_name || profile?.email?.split('@')[0] || undefined;
+      
+      const result = await createUserCampaign(getSupabaseAdmin(), userId, userName);
+      if (result.success) {
+        console.log(`[ReachInbox] Created campaign ${result.campaignId} for user ${userId}`);
+      } else {
+        console.log(`[ReachInbox] Campaign creation skipped or failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('[ReachInbox] Error creating campaign:', error);
+      // Don't fail the webhook - campaign creation is secondary
+    }
+  }
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {

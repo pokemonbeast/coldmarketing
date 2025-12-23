@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import { useImpersonation } from "@/lib/contexts/ImpersonationContext";
+import { getImpersonationHeaders } from "@/lib/api/impersonation";
 import {
   Zap,
   Clock,
@@ -61,6 +63,7 @@ const PLATFORM_ICONS: Record<string, string> = {
 };
 
 export default function ActionsPage() {
+  const { isImpersonating, impersonatedUser } = useImpersonation();
   const [actions, setActions] = useState<PlannedAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "pending" | "completed">("pending");
@@ -73,7 +76,9 @@ export default function ActionsPage() {
     setLoading(true);
     try {
       const status = filter === "all" ? "" : filter === "pending" ? "pending" : "completed";
-      const response = await fetch(`/api/actions?status=${status}&limit=100`);
+      const response = await fetch(`/api/actions?status=${status}&limit=100`, {
+        headers: getImpersonationHeaders(),
+      });
       const data = await response.json();
       if (data.actions) {
         setActions(data.actions);
@@ -86,13 +91,16 @@ export default function ActionsPage() {
 
   useEffect(() => {
     fetchActions();
-  }, [fetchActions]);
+  }, [fetchActions, isImpersonating, impersonatedUser]);
 
   const handleApprove = async (actionId: string) => {
     try {
       const response = await fetch(`/api/actions/${actionId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...getImpersonationHeaders(),
+        },
         body: JSON.stringify({ status: "approved" }),
       });
       if (response.ok) {
@@ -107,7 +115,10 @@ export default function ActionsPage() {
     try {
       const response = await fetch(`/api/actions/${actionId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...getImpersonationHeaders(),
+        },
         body: JSON.stringify({ status: "skipped" }),
       });
       if (response.ok) {
@@ -124,7 +135,10 @@ export default function ActionsPage() {
     try {
       const response = await fetch(`/api/actions/${editingAction.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...getImpersonationHeaders(),
+        },
         body: JSON.stringify({ edited_comment: editedComment }),
       });
       if (response.ok) {
@@ -142,7 +156,10 @@ export default function ActionsPage() {
     try {
       const response = await fetch("/api/actions/approve-batch", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...getImpersonationHeaders(),
+        },
         body: JSON.stringify({ actionIds: Array.from(selectedActions) }),
       });
       if (response.ok) {
@@ -487,6 +504,7 @@ export default function ActionsPage() {
     </div>
   );
 }
+
 
 
 

@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
+import { getEffectiveUserId } from '@/lib/api/server-impersonation';
+import { triggerInitialResearch, isRedditScrapingActive } from '@/lib/services/research';
+import { 
+  isGmbScrapingActive, 
+  isEmailVerificationActive,
+  processTarget,
+  getNextUnfulfilledTarget,
+} from '@/lib/services/gmb-research';
+import type { GMBTarget } from '@/types/database';
 
 // GET: Get a single business
 export async function GET(
@@ -8,12 +17,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    // Use service client to bypass RLS (needed for admin impersonation)
+    const supabase = await createServiceClient();
+    
+    // Get effective user ID (supports admin impersonation)
+    const { userId, error: authError } = await getEffectiveUserId(request);
+    
+    if (authError || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -21,7 +31,7 @@ export async function GET(
       .from('businesses')
       .select('*')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (error || !business) {
@@ -48,14 +58,23 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    // Use service client to bypass RLS (needed for admin impersonation)
+    const supabase = await createServiceClient();
+    
+    // Get effective user ID (supports admin impersonation)
+    const { userId, error: authError } = await getEffectiveUserId(request);
+    
+    if (authError || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Get current business state before update
+    const { data: currentBusiness } = await supabase
+      .from('businesses')
+      .select('keywords, gmb_targets, user_id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
 
     const body = await request.json();
     const allowedFields = [
@@ -64,6 +83,7 @@ export async function PATCH(
       'description',
       'target_audience',
       'keywords',
+      'gmb_targets',
       'industry',
       'tone_of_voice',
       'auto_approve',
@@ -88,7 +108,7 @@ export async function PATCH(
       .from('businesses')
       .update(updates)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .select()
       .single();
 
@@ -101,7 +121,107 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json({ business });
+    // Check if keywords were added (didn't have before, now has)
+    const hadKeywords = currentBusiness?.keywords && currentBusiness.keywords.length > 0;
+    const hasKeywords = business.keywords && business.keywords.length > 0;
+    let researchTriggered = false;
+    let researchMessage: string | undefined;
+
+    if (!hadKeywords && hasKeywords) {
+      // Check if research has already run for this business
+      const { count: existingRuns } = await supabase
+        .from('business_research_runs')
+        .select('*', { count: 'exact', head: true })
+        .eq('business_id', id);
+
+      // Only trigger if no research has run yet
+      if (!existingRuns || existingRuns === 0) {
+        // Check subscription
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('subscription_status')
+          .eq('id', business.user_id)
+          .single();
+
+        if (profile?.subscription_status === 'active') {
+          // Check if provider is active
+          const { active: providerActive } = await isRedditScrapingActive(supabase);
+
+          if (providerActive) {
+            // Trigger research asynchronously
+            triggerInitialResearch(supabase, id)
+              .then((result) => {
+                if (result.success) {
+                  console.log(`Research started for business ${id}: ${result.itemCount} items`);
+                } else {
+                  console.error(`Research failed for business ${id}:`, result.error);
+                }
+              })
+              .catch((err) => {
+                console.error(`Research error for business ${id}:`, err);
+              });
+
+            researchTriggered = true;
+            researchMessage = 'Research has started! Results will appear in Live Research over the next week.';
+          }
+        }
+      }
+    }
+
+    // Check if GMB targets were added (didn't have unfulfilled targets before, now has)
+    const currentGmbTargets = (currentBusiness?.gmb_targets as unknown as GMBTarget[]) || [];
+    const newGmbTargets = (business.gmb_targets as unknown as GMBTarget[]) || [];
+    
+    const hadUnfulfilledTargets = currentGmbTargets.some(t => !t.fulfilled_at);
+    const hasUnfulfilledTargets = newGmbTargets.some(t => !t.fulfilled_at);
+    let gmbResearchTriggered = false;
+    let gmbResearchMessage: string | undefined;
+
+    // Trigger GMB research if new unfulfilled targets were added
+    if (!hadUnfulfilledTargets && hasUnfulfilledTargets) {
+      // Check subscription
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('subscription_status')
+        .eq('id', business.user_id)
+        .single();
+
+      if (profile?.subscription_status === 'active') {
+        // Check if GMB and email verification providers are active
+        const { active: gmbActive } = await isGmbScrapingActive(supabase);
+        const { active: emailActive } = await isEmailVerificationActive(supabase);
+
+        if (gmbActive && emailActive) {
+          // Get the first unfulfilled target and process it
+          const nextTarget = getNextUnfulfilledTarget(newGmbTargets);
+          
+          if (nextTarget) {
+            // Process first target asynchronously
+            processTarget(supabase, id, nextTarget.target, nextTarget.index)
+              .then((result) => {
+                if (result.success) {
+                  console.log(`GMB research started for business ${id}: ${result.resultCount} results, ${result.emailCount} emails`);
+                } else {
+                  console.error(`GMB research failed for business ${id}:`, result.error);
+                }
+              })
+              .catch((err) => {
+                console.error(`GMB research error for business ${id}:`, err);
+              });
+
+            gmbResearchTriggered = true;
+            gmbResearchMessage = 'Business lead research has started! Your first target is being scraped.';
+          }
+        }
+      }
+    }
+
+    return NextResponse.json({ 
+      business,
+      researchTriggered,
+      gmbResearchTriggered,
+      message: researchMessage || gmbResearchMessage,
+    });
   } catch (error) {
     console.error('Error updating business:', error);
     return NextResponse.json(
@@ -118,12 +238,13 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    // Use service client to bypass RLS (needed for admin impersonation)
+    const supabase = await createServiceClient();
+    
+    // Get effective user ID (supports admin impersonation)
+    const { userId, error: authError } = await getEffectiveUserId(request);
+    
+    if (authError || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -131,7 +252,7 @@ export async function DELETE(
       .from('businesses')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
     if (error) throw error;
 
@@ -144,4 +265,3 @@ export async function DELETE(
     );
   }
 }
-

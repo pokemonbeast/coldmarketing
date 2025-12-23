@@ -19,10 +19,11 @@ import {
   MessageSquare,
   Twitter,
   Bot,
+  Mail,
 } from "lucide-react";
 import type { ApiProvider, TablesInsert, Json } from "@/types/database";
 
-type ProviderType = "smm_panel" | "apify" | "reddapi" | "twitterapi" | "stagehand_reddit";
+type ProviderType = "smm_panel" | "apify" | "reddapi" | "twitterapi" | "stagehand_reddit" | "reachinbox";
 
 const PROVIDER_TYPES: { value: ProviderType; label: string; icon: React.ReactNode }[] = [
   { value: "smm_panel", label: "SMM Panel", icon: <Server className="w-4 h-4" /> },
@@ -30,6 +31,7 @@ const PROVIDER_TYPES: { value: ProviderType; label: string; icon: React.ReactNod
   { value: "reddapi", label: "Reddapi (Reddit)", icon: <MessageSquare className="w-4 h-4" /> },
   { value: "twitterapi", label: "TwitterAPI (X)", icon: <Twitter className="w-4 h-4" /> },
   { value: "stagehand_reddit", label: "Stagehand (Reddit)", icon: <Bot className="w-4 h-4" /> },
+  { value: "reachinbox", label: "ReachInbox (Email)", icon: <Mail className="w-4 h-4" /> },
 ];
 
 // Default configs for Apify actors
@@ -194,6 +196,8 @@ export default function AdminProvidersPage() {
           ? "https://api.twitterapi.io"
           : formData.provider_type === "stagehand_reddit"
           ? "wss://connect.browserbase.com"
+          : formData.provider_type === "reachinbox"
+          ? "https://api.reachinbox.ai"
           : ""
       ),
       is_active: formData.is_active,
@@ -310,6 +314,10 @@ export default function AdminProvidersPage() {
                         ? provider.is_active
                           ? "bg-purple-500/20"
                           : "bg-gray-500/20"
+                        : provider.provider_type === "reachinbox"
+                        ? provider.is_active
+                          ? "bg-emerald-500/20"
+                          : "bg-gray-500/20"
                         : provider.is_active
                         ? "bg-green-500/20"
                         : "bg-gray-500/20"
@@ -339,6 +347,12 @@ export default function AdminProvidersPage() {
                           provider.is_active ? "text-purple-400" : "text-gray-400"
                         }`}
                       />
+                    ) : provider.provider_type === "reachinbox" ? (
+                      <Mail
+                        className={`w-6 h-6 ${
+                          provider.is_active ? "text-emerald-400" : "text-gray-400"
+                        }`}
+                      />
                     ) : (
                       <Plug
                         className={`w-6 h-6 ${
@@ -362,9 +376,11 @@ export default function AdminProvidersPage() {
                           ? "bg-sky-500/20 text-sky-400"
                           : provider.provider_type === "stagehand_reddit"
                           ? "bg-purple-500/20 text-purple-400"
+                          : provider.provider_type === "reachinbox"
+                          ? "bg-emerald-500/20 text-emerald-400"
                           : "bg-blue-500/20 text-blue-400"
                       }`}>
-                        {provider.provider_type === "apify" ? "Apify" : provider.provider_type === "reddapi" ? "Reddit" : provider.provider_type === "twitterapi" ? "Twitter" : provider.provider_type === "stagehand_reddit" ? "Stagehand" : "SMM"}
+                        {provider.provider_type === "apify" ? "Apify" : provider.provider_type === "reddapi" ? "Reddit" : provider.provider_type === "twitterapi" ? "Twitter" : provider.provider_type === "stagehand_reddit" ? "Stagehand" : provider.provider_type === "reachinbox" ? "Email" : "SMM"}
                       </span>
                     </div>
                   </div>
@@ -499,6 +515,35 @@ export default function AdminProvidersPage() {
                       </span>
                     </div>
                   </>
+                ) : provider.provider_type === "reachinbox" ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500">API URL:</span>
+                      <a
+                        href={provider.api_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 truncate"
+                      >
+                        {provider.api_url}
+                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500">API Key:</span>
+                      <span className="text-gray-300">
+                        {provider.api_key_encrypted
+                          ? "••••••••••••"
+                          : "Not configured"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500">Purpose:</span>
+                      <span className="text-gray-300">
+                        Email campaigns with 3-step sequences
+                      </span>
+                    </div>
+                  </>
                 ) : (
                   <>
                     <div className="flex items-center gap-2 text-sm">
@@ -608,6 +653,8 @@ export default function AdminProvidersPage() {
                             ? "border-sky-500 bg-sky-500/20 text-sky-400"
                             : type.value === "stagehand_reddit"
                             ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                            : type.value === "reachinbox"
+                            ? "border-emerald-500 bg-emerald-500/20 text-emerald-400"
                             : "border-blue-500 bg-blue-500/20 text-blue-400"
                           : "border-slate-700 bg-slate-900/50 text-gray-400 hover:border-slate-600"
                       }`}
@@ -722,7 +769,7 @@ export default function AdminProvidersPage() {
               {formData.provider_type !== "reddapi" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-300">
-                    {formData.provider_type === "apify" ? "API Token" : formData.provider_type === "twitterapi" ? "X-API-Key" : formData.provider_type === "stagehand_reddit" ? "Browserbase API Key" : "API Key"}{" "}
+                    {formData.provider_type === "apify" ? "API Token" : formData.provider_type === "twitterapi" ? "X-API-Key" : formData.provider_type === "stagehand_reddit" ? "Browserbase API Key" : formData.provider_type === "reachinbox" ? "ReachInbox API Key" : "API Key"}{" "}
                     {editingProvider && <span className="text-gray-500">(leave blank to keep existing)</span>}
                   </label>
                   <div className="relative">
@@ -742,6 +789,8 @@ export default function AdminProvidersPage() {
                           ? "Your twitterapi.io API key"
                           : formData.provider_type === "stagehand_reddit"
                           ? "bb_live_xxxxx..."
+                          : formData.provider_type === "reachinbox"
+                          ? "Your ReachInbox API key from Settings > Integrations"
                           : "Enter your API key"
                       }
                       className="w-full px-4 py-3 pr-12 rounded-xl bg-slate-900/50 border border-slate-700 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"

@@ -45,7 +45,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "action_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       api_providers: {
         Row: {
@@ -91,45 +99,53 @@ export type Database = {
       }
       apify_scrape_results: {
         Row: {
-          id: string
-          provider_id: string
           actor_id: string
-          run_id: string
-          dataset_id: string
-          input_config: Json
-          results_data: Json
-          item_count: number
-          usage_usd: number | null
-          status: string
           created_at: string
+          dataset_id: string
+          id: string
+          input_config: Json
+          item_count: number
+          provider_id: string
+          results_data: Json
+          run_id: string
+          status: string
+          usage_usd: number | null
         }
         Insert: {
-          id?: string
-          provider_id: string
           actor_id: string
-          run_id: string
-          dataset_id: string
-          input_config?: Json
-          results_data?: Json
-          item_count?: number
-          usage_usd?: number | null
-          status?: string
           created_at?: string
+          dataset_id: string
+          id?: string
+          input_config?: Json
+          item_count?: number
+          provider_id: string
+          results_data?: Json
+          run_id: string
+          status?: string
+          usage_usd?: number | null
         }
         Update: {
-          id?: string
-          provider_id?: string
           actor_id?: string
-          run_id?: string
-          dataset_id?: string
-          input_config?: Json
-          results_data?: Json
-          item_count?: number
-          usage_usd?: number | null
-          status?: string
           created_at?: string
+          dataset_id?: string
+          id?: string
+          input_config?: Json
+          item_count?: number
+          provider_id?: string
+          results_data?: Json
+          run_id?: string
+          status?: string
+          usage_usd?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "apify_scrape_results_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "api_providers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       business_platform_configs: {
         Row: {
@@ -168,13 +184,98 @@ export type Database = {
           scraper_config_id?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "business_platform_configs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_platform_configs_scraper_config_id_fkey"
+            columns: ["scraper_config_id"]
+            isOneToOne: false
+            referencedRelation: "scraper_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_research_runs: {
+        Row: {
+          apify_dataset_id: string | null
+          apify_run_id: string | null
+          business_id: string
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          item_count: number | null
+          keywords_used: string[]
+          provider_slug: string
+          run_type: string
+          simulated_posts: Json | null
+          started_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          apify_dataset_id?: string | null
+          apify_run_id?: string | null
+          business_id: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          item_count?: number | null
+          keywords_used?: string[]
+          provider_slug: string
+          run_type: string
+          simulated_posts?: Json | null
+          started_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          apify_dataset_id?: string | null
+          apify_run_id?: string | null
+          business_id?: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          item_count?: number | null
+          keywords_used?: string[]
+          provider_slug?: string
+          run_type?: string
+          simulated_posts?: Json | null
+          started_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_research_runs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_research_runs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       businesses: {
         Row: {
           auto_approve: boolean | null
           created_at: string | null
           description: string | null
+          gmb_targets: Json | null
           id: string
           industry: string | null
           is_active: boolean | null
@@ -190,6 +291,7 @@ export type Database = {
           auto_approve?: boolean | null
           created_at?: string | null
           description?: string | null
+          gmb_targets?: Json | null
           id?: string
           industry?: string | null
           is_active?: boolean | null
@@ -205,6 +307,7 @@ export type Database = {
           auto_approve?: boolean | null
           created_at?: string | null
           description?: string | null
+          gmb_targets?: Json | null
           id?: string
           industry?: string | null
           is_active?: boolean | null
@@ -216,7 +319,15 @@ export type Database = {
           user_id?: string
           website_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "businesses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       content_embeddings: {
         Row: {
@@ -227,6 +338,7 @@ export type Database = {
           created_at: string | null
           embedding: string | null
           id: string
+          is_used: boolean
           metadata: Json | null
           platform: Database["public"]["Enums"]["platform_type"]
           relevance_score: number | null
@@ -240,6 +352,7 @@ export type Database = {
           created_at?: string | null
           embedding?: string | null
           id?: string
+          is_used?: boolean
           metadata?: Json | null
           platform: Database["public"]["Enums"]["platform_type"]
           relevance_score?: number | null
@@ -253,12 +366,75 @@ export type Database = {
           created_at?: string | null
           embedding?: string | null
           id?: string
+          is_used?: boolean
           metadata?: Json | null
           platform?: Database["public"]["Enums"]["platform_type"]
           relevance_score?: number | null
           scraped_pool_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "content_embeddings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_embeddings_scraped_pool_id_fkey"
+            columns: ["scraped_pool_id"]
+            isOneToOne: false
+            referencedRelation: "scraped_content_pool"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_verification_queue: {
+        Row: {
+          created_at: string
+          email_count: number
+          emails_to_verify: Json
+          error_message: string | null
+          id: string
+          processed_at: string | null
+          scrape_result_id: string
+          status: string
+          verification_dataset_id: string | null
+          verification_run_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_count?: number
+          emails_to_verify?: Json
+          error_message?: string | null
+          id?: string
+          processed_at?: string | null
+          scrape_result_id: string
+          status?: string
+          verification_dataset_id?: string | null
+          verification_run_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_count?: number
+          emails_to_verify?: Json
+          error_message?: string | null
+          id?: string
+          processed_at?: string | null
+          scrape_result_id?: string
+          status?: string
+          verification_dataset_id?: string | null
+          verification_run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_verification_queue_scrape_result_id_fkey"
+            columns: ["scrape_result_id"]
+            isOneToOne: true
+            referencedRelation: "apify_scrape_results"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       executed_actions: {
         Row: {
@@ -311,6 +487,117 @@ export type Database = {
           status?: string | null
           target_url?: string
           user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "executed_actions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "executed_actions_planned_action_id_fkey"
+            columns: ["planned_action_id"]
+            isOneToOne: false
+            referencedRelation: "planned_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "executed_actions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gmb_scrape_cache: {
+        Row: {
+          cache_key: string
+          city: string | null
+          country: string
+          created_at: string | null
+          email_count: number | null
+          expires_at: string
+          id: string
+          industry: string
+          result_count: number | null
+          scrape_result_id: string | null
+          scraped_at: string
+          state: string | null
+        }
+        Insert: {
+          cache_key: string
+          city?: string | null
+          country: string
+          created_at?: string | null
+          email_count?: number | null
+          expires_at?: string
+          id?: string
+          industry: string
+          result_count?: number | null
+          scrape_result_id?: string | null
+          scraped_at?: string
+          state?: string | null
+        }
+        Update: {
+          cache_key?: string
+          city?: string | null
+          country?: string
+          created_at?: string | null
+          email_count?: number | null
+          expires_at?: string
+          id?: string
+          industry?: string
+          result_count?: number | null
+          scrape_result_id?: string | null
+          scraped_at?: string
+          state?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gmb_scrape_cache_scrape_result_id_fkey"
+            columns: ["scrape_result_id"]
+            isOneToOne: false
+            referencedRelation: "apify_scrape_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_lists: {
+        Row: {
+          city: string
+          country_code: string
+          created_at: string
+          id: string
+          industry: string
+          lead_count: number
+          lead_type: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          country_code: string
+          created_at?: string
+          id?: string
+          industry: string
+          lead_count?: number
+          lead_type?: string
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          country_code?: string
+          created_at?: string
+          id?: string
+          industry?: string
+          lead_count?: number
+          lead_type?: string
+          state?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -381,19 +668,39 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "api_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       planned_actions: {
         Row: {
           auto_approved: boolean | null
           business_id: string
+          content_embedding_id: string | null
           created_at: string | null
           edited_comment: string | null
           embedding_id: string | null
+          error_message: string | null
+          executed_at: string | null
           generated_comment: string
           id: string
+          panel_order_id: string | null
           platform: Database["public"]["Enums"]["platform_type"]
           relevance_score: number | null
+          retry_count: number | null
           scheduled_for: string | null
           status: Database["public"]["Enums"]["action_status"] | null
           target_snippet: string | null
@@ -404,13 +711,18 @@ export type Database = {
         Insert: {
           auto_approved?: boolean | null
           business_id: string
+          content_embedding_id?: string | null
           created_at?: string | null
           edited_comment?: string | null
           embedding_id?: string | null
+          error_message?: string | null
+          executed_at?: string | null
           generated_comment: string
           id?: string
+          panel_order_id?: string | null
           platform: Database["public"]["Enums"]["platform_type"]
           relevance_score?: number | null
+          retry_count?: number | null
           scheduled_for?: string | null
           status?: Database["public"]["Enums"]["action_status"] | null
           target_snippet?: string | null
@@ -421,13 +733,18 @@ export type Database = {
         Update: {
           auto_approved?: boolean | null
           business_id?: string
+          content_embedding_id?: string | null
           created_at?: string | null
           edited_comment?: string | null
           embedding_id?: string | null
+          error_message?: string | null
+          executed_at?: string | null
           generated_comment?: string
           id?: string
+          panel_order_id?: string | null
           platform?: Database["public"]["Enums"]["platform_type"]
           relevance_score?: number | null
+          retry_count?: number | null
           scheduled_for?: string | null
           status?: Database["public"]["Enums"]["action_status"] | null
           target_snippet?: string | null
@@ -435,7 +752,29 @@ export type Database = {
           target_url?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "planned_actions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planned_actions_content_embedding_id_fkey"
+            columns: ["content_embedding_id"]
+            isOneToOne: false
+            referencedRelation: "content_embeddings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planned_actions_embedding_id_fkey"
+            columns: ["embedding_id"]
+            isOneToOne: false
+            referencedRelation: "content_embeddings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -482,6 +821,111 @@ export type Database = {
         }
         Relationships: []
       }
+      reddit_accounts: {
+        Row: {
+          browserbase_context_created_at: string | null
+          browserbase_context_id: string | null
+          cookies: string | null
+          cookies_updated_at: string | null
+          failure_count: number | null
+          id: string
+          is_active: boolean | null
+          last_used_at: string | null
+          password: string
+          proxy: string
+          token_v2: string | null
+          username: string
+        }
+        Insert: {
+          browserbase_context_created_at?: string | null
+          browserbase_context_id?: string | null
+          cookies?: string | null
+          cookies_updated_at?: string | null
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          password: string
+          proxy: string
+          token_v2?: string | null
+          username: string
+        }
+        Update: {
+          browserbase_context_created_at?: string | null
+          browserbase_context_id?: string | null
+          cookies?: string | null
+          cookies_updated_at?: string | null
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          password?: string
+          proxy?: string
+          token_v2?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
+      research_results: {
+        Row: {
+          business_id: string
+          created_at: string
+          external_id: string | null
+          id: string
+          platform: string
+          relevance_score: number | null
+          research_run_id: string
+          result_data: Json
+          reveal_at: string
+          score: number | null
+          title: string | null
+          url: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          platform: string
+          relevance_score?: number | null
+          research_run_id: string
+          result_data: Json
+          reveal_at: string
+          score?: number | null
+          title?: string | null
+          url?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          platform?: string
+          relevance_score?: number | null
+          research_run_id?: string
+          result_data?: Json
+          reveal_at?: string
+          score?: number | null
+          title?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_results_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_results_research_run_id_fkey"
+            columns: ["research_run_id"]
+            isOneToOne: false
+            referencedRelation: "business_research_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scraped_content_pool: {
         Row: {
           batch_data: Json
@@ -519,7 +963,22 @@ export type Database = {
           scraped_at?: string | null
           scraper_config_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "scraped_content_pool_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scraped_content_pool_scraper_config_id_fkey"
+            columns: ["scraper_config_id"]
+            isOneToOne: false
+            referencedRelation: "scraper_configs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scraper_configs: {
         Row: {
@@ -618,43 +1077,79 @@ export type Database = {
           started_at?: string | null
           status?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "scraper_run_logs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scraper_run_logs_scraper_config_id_fkey"
+            columns: ["scraper_config_id"]
+            isOneToOne: false
+            referencedRelation: "scraper_configs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_mappings: {
         Row: {
+          action_type: string | null
           config: Json | null
           created_at: string
           external_service_id: string | null
           id: string
           is_active: boolean | null
+          platform: string | null
           priority: number | null
           provider_id: string
           service_id: string
           updated_at: string
         }
         Insert: {
+          action_type?: string | null
           config?: Json | null
           created_at?: string
           external_service_id?: string | null
           id?: string
           is_active?: boolean | null
+          platform?: string | null
           priority?: number | null
           provider_id: string
           service_id: string
           updated_at?: string
         }
         Update: {
+          action_type?: string | null
           config?: Json | null
           created_at?: string
           external_service_id?: string | null
           id?: string
           is_active?: boolean | null
+          platform?: string | null
           priority?: number | null
           provider_id?: string
           service_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "service_mappings_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "api_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_mappings_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       services: {
         Row: {
@@ -680,141 +1175,6 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           slug?: string
-        }
-        Relationships: []
-      }
-      lead_lists: {
-        Row: {
-          id: string
-          lead_type: string
-          industry: string
-          city: string
-          state: string
-          country_code: string
-          lead_count: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          lead_type?: string
-          industry: string
-          city: string
-          state: string
-          country_code: string
-          lead_count?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          lead_type?: string
-          industry?: string
-          city?: string
-          state?: string
-          country_code?: string
-          lead_count?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      verified_leads: {
-        Row: {
-          id: string
-          lead_list_id: string
-          email: string
-          domain: string
-          company_name: string | null
-          lead_type: string
-          phone: string | null
-          website: string | null
-          address: string | null
-          city: string | null
-          state: string | null
-          country_code: string
-          industry: string | null
-          verification_state: string
-          verification_data: Json | null
-          source_scrape_id: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          lead_list_id: string
-          email: string
-          domain: string
-          company_name?: string | null
-          lead_type?: string
-          phone?: string | null
-          website?: string | null
-          address?: string | null
-          city?: string | null
-          state?: string | null
-          country_code: string
-          industry?: string | null
-          verification_state?: string
-          verification_data?: Json | null
-          source_scrape_id?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          lead_list_id?: string
-          email?: string
-          domain?: string
-          company_name?: string | null
-          lead_type?: string
-          phone?: string | null
-          website?: string | null
-          address?: string | null
-          city?: string | null
-          state?: string | null
-          country_code?: string
-          industry?: string | null
-          verification_state?: string
-          verification_data?: Json | null
-          source_scrape_id?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      email_verification_queue: {
-        Row: {
-          id: string
-          scrape_result_id: string
-          emails_to_verify: Json
-          email_count: number
-          status: string
-          verification_run_id: string | null
-          verification_dataset_id: string | null
-          error_message: string | null
-          created_at: string
-          processed_at: string | null
-        }
-        Insert: {
-          id?: string
-          scrape_result_id: string
-          emails_to_verify?: Json
-          email_count?: number
-          status?: string
-          verification_run_id?: string | null
-          verification_dataset_id?: string | null
-          error_message?: string | null
-          created_at?: string
-          processed_at?: string | null
-        }
-        Update: {
-          id?: string
-          scrape_result_id?: string
-          emails_to_verify?: Json
-          email_count?: number
-          status?: string
-          verification_run_id?: string | null
-          verification_dataset_id?: string | null
-          error_message?: string | null
-          created_at?: string
-          processed_at?: string | null
         }
         Relationships: []
       }
@@ -848,6 +1208,48 @@ export type Database = {
           name?: string
           price_monthly?: number | null
           price_yearly?: number | null
+        }
+        Relationships: []
+      }
+      twitter_accounts: {
+        Row: {
+          email: string
+          failure_count: number | null
+          id: string
+          is_active: boolean | null
+          last_used_at: string | null
+          login_cookie: string | null
+          login_cookie_updated_at: string | null
+          password: string
+          proxy: string
+          totp_secret: string | null
+          username: string
+        }
+        Insert: {
+          email: string
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          login_cookie?: string | null
+          login_cookie_updated_at?: string | null
+          password: string
+          proxy: string
+          totp_secret?: string | null
+          username: string
+        }
+        Update: {
+          email?: string
+          failure_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          login_cookie?: string | null
+          login_cookie_updated_at?: string | null
+          password?: string
+          proxy?: string
+          totp_secret?: string | null
+          username?: string
         }
         Relationships: []
       }
@@ -891,86 +1293,462 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_override_by_fkey"
+            columns: ["override_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      reddit_accounts: {
+      verified_leads: {
         Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
           id: string
-          username: string
-          password: string
-          proxy: string
-          cookies: string | null
-          token_v2: string | null
-          cookies_updated_at: string | null
-          is_active: boolean | null
-          failure_count: number | null
-          last_used_at: string | null
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
         }
         Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
           id?: string
-          username: string
-          password: string
-          proxy: string
-          cookies?: string | null
-          token_v2?: string | null
-          cookies_updated_at?: string | null
-          is_active?: boolean | null
-          failure_count?: number | null
-          last_used_at?: string | null
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
         }
         Update: {
-          id?: string
-          username?: string
-          password?: string
-          proxy?: string
-          cookies?: string | null
-          token_v2?: string | null
-          cookies_updated_at?: string | null
-          is_active?: boolean | null
-          failure_count?: number | null
-          last_used_at?: string | null
-        }
-        Relationships: []
-      }
-      twitter_accounts: {
-        Row: {
-          id: string
-          username: string
-          email: string
-          password: string
-          proxy: string
-          totp_secret: string | null
-          login_cookie: string | null
-          login_cookie_updated_at: string | null
-          is_active: boolean | null
-          failure_count: number | null
-          last_used_at: string | null
-        }
-        Insert: {
-          id?: string
-          username: string
-          email: string
-          password: string
-          proxy: string
-          totp_secret?: string | null
-          login_cookie?: string | null
-          login_cookie_updated_at?: string | null
-          is_active?: boolean | null
-          failure_count?: number | null
-          last_used_at?: string | null
-        }
-        Update: {
-          id?: string
-          username?: string
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
           email?: string
-          password?: string
-          proxy?: string
-          totp_secret?: string | null
-          login_cookie?: string | null
-          login_cookie_updated_at?: string | null
-          is_active?: boolean | null
-          failure_count?: number | null
-          last_used_at?: string | null
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verified_leads_lead_list_id_fkey"
+            columns: ["lead_list_id"]
+            isOneToOne: false
+            referencedRelation: "lead_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verified_leads_source_scrape_id_fkey"
+            columns: ["source_scrape_id"]
+            isOneToOne: false
+            referencedRelation: "apify_scrape_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verified_leads_au: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      verified_leads_ca: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      verified_leads_de: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      verified_leads_other: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      verified_leads_uk: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      verified_leads_us: {
+        Row: {
+          address: string | null
+          city: string | null
+          company_name: string | null
+          country_code: string
+          created_at: string
+          domain: string
+          email: string
+          id: string
+          industry: string | null
+          lead_list_id: string
+          lead_type: string
+          phone: string | null
+          source_scrape_id: string | null
+          state: string | null
+          verification_data: Json | null
+          verification_state: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code: string
+          created_at?: string
+          domain: string
+          email: string
+          id?: string
+          industry?: string | null
+          lead_list_id: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          company_name?: string | null
+          country_code?: string
+          created_at?: string
+          domain?: string
+          email?: string
+          id?: string
+          industry?: string | null
+          lead_list_id?: string
+          lead_type?: string
+          phone?: string | null
+          source_scrape_id?: string | null
+          state?: string | null
+          verification_data?: Json | null
+          verification_state?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -1007,9 +1785,146 @@ export type Database = {
   }
 }
 
-export type Tables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"]
-export type Enums<T extends keyof Database["public"]["Enums"]> = Database["public"]["Enums"][T]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      action_status: [
+        "pending_review",
+        "approved",
+        "scheduled",
+        "executing",
+        "completed",
+        "failed",
+        "skipped",
+      ],
+      platform_type: [
+        "reddit",
+        "instagram",
+        "tiktok",
+        "linkedin",
+        "youtube",
+        "twitter",
+      ],
+      scraper_provider: ["apify", "rapidapi", "custom"],
+      subscription_status: ["active", "inactive", "cancelled", "overridden"],
+      user_role: ["user", "admin"],
+    },
+  },
+} as const

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useImpersonation } from "@/lib/contexts/ImpersonationContext";
 import {
   Users,
   CreditCard,
@@ -17,6 +18,7 @@ import {
   X,
   ChevronRight,
   Home,
+  UserCheck,
 } from "lucide-react";
 import type { Profile } from "@/types/database";
 
@@ -38,6 +40,7 @@ export default function AdminLayout({
   const [profile, setProfile] = useState<Profile | null>(null);
   const pathname = usePathname();
   const router = useRouter();
+  const { isImpersonating, impersonatedUser, stopImpersonation } = useImpersonation();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -157,6 +160,25 @@ export default function AdminLayout({
 
         {/* User section */}
         <div className="p-4 border-t border-slate-800">
+          {/* Active impersonation indicator */}
+          {isImpersonating && impersonatedUser && (
+            <button
+              onClick={() => {
+                router.push("/dashboard");
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 mb-3 hover:bg-amber-500/20 transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                <UserCheck className="w-4 h-4 text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-amber-400 font-medium text-sm truncate">
+                  Viewing: {impersonatedUser.full_name || impersonatedUser.email}
+                </p>
+                <p className="text-amber-400/60 text-xs">Click to return to user view</p>
+              </div>
+            </button>
+          )}
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/50 mb-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
               <span className="text-white font-semibold">
@@ -192,7 +214,7 @@ export default function AdminLayout({
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-screen lg:ml-0">
+      <div className={`flex-1 flex flex-col min-h-screen lg:ml-0 ${isImpersonating ? "mt-12" : ""}`}>
         {/* Mobile header */}
         <header className="lg:hidden sticky top-0 z-30 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800 px-4 py-3">
           <div className="flex items-center justify-between">

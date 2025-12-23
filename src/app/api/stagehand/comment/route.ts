@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createStagehandRedditClient } from "@/lib/api/stagehand-reddit";
+import { createStagehandRedditClient, createBrowserbaseContext } from "@/lib/api/stagehand-reddit";
 
 // Timeout safety: 55 seconds for Vercel Pro (60s limit)
 const TIMEOUT_MS = 55000;
@@ -10,6 +10,7 @@ interface CommentRequest {
   post_url: string;
   account_id?: string; // Optional: specific Reddit account to use
   provider_id?: string; // Optional: specific Stagehand provider to use
+  proxy_mode?: "browserbase" | "custom" | "none"; // Which proxy to use
 }
 
 interface RedditAccount {
@@ -22,6 +23,8 @@ interface RedditAccount {
   is_active: boolean;
   failure_count: number;
   last_used_at: string | null;
+  browserbase_context_id: string | null;
+  browserbase_context_created_at: string | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -50,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body: CommentRequest = await request.json();
-    const { text, post_url, account_id, provider_id } = body;
+    const { text, post_url, account_id, provider_id, proxy_mode } = body;
 
     if (!text || !post_url) {
       return NextResponse.json(
@@ -137,13 +140,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Initialize Stagehand client
+    // Determine proxy configuration
+    const effectiveProxyMode = proxy_mode || "browserbase";
+    const customProxyConfig = effectiveProxyMode === "custom" && redditAccount.proxy
+      ? { server: redditAccount.proxy }
+      : undefined;
+
+    console.log(`[Stagehand Comment] Proxy mode: ${effectiveProxyMode}`);
+    if (customProxyConfig) {
+      console.log(`[Stagehand Comment] Custom proxy: ${redditAccount.proxy?.split("@").pop() || "configured"}`);
+    }
+
+    // Get or create Browserbase context for persistent browser profile
+    let contextId = redditAccount.browserbase_context_id;
+    if (!contextId) {
+      console.log(`[Stagehand Comment] Creating new Browserbase context for account: ${redditAccount.username}`);
+      try {
+        contextId = await createBrowserbaseContext(apiKey, projectId);
+        
+        // Save context ID to account
+        await supabase
+          .from("reddit_accounts")
+          .update({
+            browserbase_context_id: contextId,
+            browserbase_context_created_at: new Date().toISOString(),
+          })
+          .eq("id", redditAccount.id);
+        
+        console.log(`[Stagehand Comment] Context created and saved: ${contextId}`);
+      } catch (contextError) {
+        console.warn("[Stagehand Comment] Failed to create context, continuing without:", contextError);
+        contextId = null;
+      }
+    } else {
+      console.log(`[Stagehand Comment] Using existing context: ${contextId}`);
+    }
+
+    // Initialize Stagehand client with context
     const client = createStagehandRedditClient({
       apiKey,
       projectId,
       modelApiKey,
       modelName: "gemini-2.0-flash", // Stable Gemini Flash model
-      proxies: (config?.proxies as boolean) ?? true,
+      proxyMode: effectiveProxyMode,
+      customProxy: customProxyConfig,
+      contextId: contextId || undefined,
       stealth: (config?.stealth as boolean) ?? true,
       timing: (config?.timing as { min_delay: number; max_delay: number }) ?? {
         min_delay: 2000,

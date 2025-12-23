@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getEffectiveUserId } from '@/lib/api/server-impersonation';
 
 // GET: Get single action
 export async function GET(
@@ -9,9 +10,11 @@ export async function GET(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    
+    // Get effective user ID (supports admin impersonation)
+    const { userId, error: authError } = await getEffectiveUserId(request);
+    
+    if (authError || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -31,7 +34,7 @@ export async function GET(
       .from('businesses')
       .select('id')
       .eq('id', action.business_id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (!business) {
@@ -53,9 +56,11 @@ export async function PATCH(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    
+    // Get effective user ID (supports admin impersonation)
+    const { userId, error: authError } = await getEffectiveUserId(request);
+    
+    if (authError || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -74,7 +79,7 @@ export async function PATCH(
     }
 
     // Verify ownership
-    if ((currentAction as any).business?.user_id !== user.id) {
+    if ((currentAction as any).business?.user_id !== userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -146,9 +151,11 @@ export async function DELETE(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
+    
+    // Get effective user ID (supports admin impersonation)
+    const { userId, error: authError } = await getEffectiveUserId(request);
+    
+    if (authError || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -163,7 +170,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Action not found' }, { status: 404 });
     }
 
-    if ((action as any).business?.user_id !== user.id) {
+    if ((action as any).business?.user_id !== userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -181,4 +188,3 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete action' }, { status: 500 });
   }
 }
-
