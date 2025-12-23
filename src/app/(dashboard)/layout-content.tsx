@@ -80,13 +80,27 @@ export default function DashboardLayoutContent({
     const effectiveUserId = getEffectiveUserId() || user.id;
 
     // Fetch profile for the effective user
-    const { data: profileData } = await supabase
+    const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("id, email, full_name, subscription_status, subscription_plan_name, subscription_actions_limit, unread_emails_count")
       .eq("id", effectiveUserId)
       .single();
 
-    if (profileData) {
+    if (profileError) {
+      console.error("Error fetching profile:", profileError);
+      // If the error is about missing column, try without it
+      if (profileError.message?.includes("unread_emails_count")) {
+        const { data: profileDataWithoutCount } = await supabase
+          .from("profiles")
+          .select("id, email, full_name, subscription_status, subscription_plan_name, subscription_actions_limit")
+          .eq("id", effectiveUserId)
+          .single();
+        
+        if (profileDataWithoutCount) {
+          setProfile({ ...profileDataWithoutCount, unread_emails_count: null });
+        }
+      }
+    } else if (profileData) {
       setProfile(profileData);
     }
 
