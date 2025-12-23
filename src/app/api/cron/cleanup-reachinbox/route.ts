@@ -67,24 +67,36 @@ export async function GET(request: NextRequest) {
 
     // Filter to only those who have been inactive for 7+ days
     const campaignsToDelete = (expiredCampaigns || []).filter((campaign) => {
-      const profile = campaign.profiles as {
+      // Cast through unknown to handle Supabase's type inference
+      const profile = (campaign.profiles as unknown) as {
         id: string;
         subscription_status: string | null;
         subscription_current_period_end: string | null;
-      };
+      } | Array<{
+        id: string;
+        subscription_status: string | null;
+        subscription_current_period_end: string | null;
+      }>;
+
+      // Handle both array and single object cases
+      const profileData = Array.isArray(profile) ? profile[0] : profile;
+      
+      if (!profileData) {
+        return false;
+      }
 
       // Skip if subscription is active
-      if (profile.subscription_status === 'active') {
+      if (profileData.subscription_status === 'active') {
         return false;
       }
 
       // If no end date, consider it expired
-      if (!profile.subscription_current_period_end) {
+      if (!profileData.subscription_current_period_end) {
         return true;
       }
 
       // Check if subscription ended more than 7 days ago
-      const endDate = new Date(profile.subscription_current_period_end);
+      const endDate = new Date(profileData.subscription_current_period_end);
       return endDate < cutoffDate;
     });
 
