@@ -6,9 +6,12 @@ import {
   getBusinessesWithPendingTargets,
   getNextUnfulfilledTarget,
   processTarget,
+  processXmisoTarget,
   hasActiveSubscription,
   cleanupExpiredCache,
+  type GmbScraperType,
 } from '@/lib/services/gmb-research';
+import type { XmisoGMBTarget } from '@/lib/data/xmiso-categories';
 
 // Vercel cron job secret for authentication
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -39,9 +42,9 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Check if GMB scraping provider is active
-    const { active: gmbActive } = await isGmbScrapingActive(supabase);
-    if (!gmbActive) {
+    // Check if GMB scraping provider is active and get scraper type
+    const { active: gmbActive, scraperType } = await isGmbScrapingActive(supabase);
+    if (!gmbActive || !scraperType) {
       return NextResponse.json({
         success: true,
         message: 'GMB scraping provider is not active, skipping research',
@@ -49,6 +52,8 @@ export async function GET(request: NextRequest) {
         duration: Date.now() - startTime,
       });
     }
+    
+    console.log(`🔧 Using GMB scraper type: ${scraperType}`);
 
     // Check if email verification provider is active
     const { active: emailActive } = await isEmailVerificationActive(supabase);
@@ -126,15 +131,26 @@ export async function GET(request: NextRequest) {
 
       const { target, index } = nextTarget;
 
-      console.log(`🔍 Processing target for ${business.name}: "${target.industry}" in ${target.countryName}`);
+      // Get the search term for display
+      const xmisoTarget = target as unknown as XmisoGMBTarget;
+      const searchTerm = scraperType === 'xmiso' 
+        ? (xmisoTarget.keyword || xmisoTarget.category || 'business')
+        : target.industry;
+      const locationName = scraperType === 'xmiso'
+        ? xmisoTarget.countryName
+        : target.countryName;
 
-      // Process the target (with caching)
-      const result = await processTarget(supabase, business.id, target, index);
+      console.log(`🔍 Processing target for ${business.name}: "${searchTerm}" in ${locationName} (${scraperType})`);
+
+      // Process the target based on scraper type (both use same caching strategy)
+      const result = scraperType === 'xmiso'
+        ? await processXmisoTarget(supabase, business.id, xmisoTarget, index)
+        : await processTarget(supabase, business.id, target, index);
       
       results.push({
         businessId: business.id,
         businessName: business.name,
-        targetIndustry: target.industry,
+        targetIndustry: searchTerm,
         success: result.success,
         fromCache: result.fromCache,
         resultCount: result.resultCount,
