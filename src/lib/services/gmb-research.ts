@@ -3,12 +3,21 @@
  * 
  * Handles automated scraping of Google My Business data via Apify,
  * with universal caching (shared across users) and one-time-per-target logic.
+ * 
+ * Supports two scrapers:
+ * 1. compass/crawler-google-places (default)
+ * 2. xmiso_scrapers/millions-us-businesses-leads-with-emails-from-google-maps
  */
 
 import { ApifyClient } from 'apify-client';
 import type { GMBTarget } from '@/types/database';
 import type { Json } from '@/types/supabase';
 import { generateCacheKey } from '@/lib/data/locations';
+import { 
+  type XmisoGMBTarget, 
+  generateXmisoCacheKey, 
+  buildXmisoInput 
+} from '@/lib/data/xmiso-categories';
 
 // Use a simpler type for Supabase client to avoid complex generic issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,9 +31,16 @@ import {
   type EmailVerificationResult,
 } from './lead-lists';
 
-// Constants
-const GMB_SCRAPER_ACTOR_ID = 'compass/crawler-google-places';
+// Constants - Scraper Actor IDs
+const COMPASS_SCRAPER_ACTOR_ID = 'compass/crawler-google-places';
+const XMISO_SCRAPER_ACTOR_ID = 'xmiso_scrapers/millions-us-businesses-leads-with-emails-from-google-maps';
+
+// Provider slugs
 const GMB_PROVIDER_SLUG = 'gmb-leads';
+const XMISO_PROVIDER_SLUG = 'gmb-leads-xmiso';
+
+// Scraper type enum
+export type GmbScraperType = 'compass' | 'xmiso';
 const EMAIL_VERIFICATION_PROVIDER_SLUG = 'email-verification';
 
 export interface GmbResearchResult {
@@ -38,23 +54,50 @@ export interface GmbResearchResult {
 }
 
 /**
- * Check if GMB scraping provider is active
+ * Check if GMB scraping provider is active and get the scraper type
  */
 export async function isGmbScrapingActive(
   supabase: SupabaseClientType
-): Promise<{ active: boolean; provider?: { id: string; api_key_encrypted: string | null; config: unknown } }> {
-  const { data: provider } = await supabase
+): Promise<{ 
+  active: boolean; 
+  scraperType?: GmbScraperType;
+  provider?: { id: string; api_key_encrypted: string | null; config: unknown } 
+}> {
+  // First check for xmiso scraper (takes priority if both are active)
+  const { data: xmisoProvider } = await supabase
+    .from('api_providers')
+    .select('id, api_key_encrypted, config')
+    .eq('slug', XMISO_PROVIDER_SLUG)
+    .eq('is_active', true)
+    .single();
+
+  if (xmisoProvider && xmisoProvider.api_key_encrypted) {
+    return { active: true, scraperType: 'xmiso', provider: xmisoProvider };
+  }
+
+  // Fall back to compass scraper
+  const { data: compassProvider } = await supabase
     .from('api_providers')
     .select('id, api_key_encrypted, config')
     .eq('slug', GMB_PROVIDER_SLUG)
     .eq('is_active', true)
     .single();
 
-  if (!provider || !provider.api_key_encrypted) {
-    return { active: false };
+  if (compassProvider && compassProvider.api_key_encrypted) {
+    return { active: true, scraperType: 'compass', provider: compassProvider };
   }
 
-  return { active: true, provider };
+  return { active: false };
+}
+
+/**
+ * Get the active GMB scraper type
+ */
+export async function getActiveGmbScraperType(
+  supabase: SupabaseClientType
+): Promise<GmbScraperType | null> {
+  const { active, scraperType } = await isGmbScrapingActive(supabase);
+  return active ? scraperType || null : null;
 }
 
 /**
@@ -243,9 +286,9 @@ function buildLocationQuery(target: GMBTarget): string {
 }
 
 /**
- * Run the GMB scraper via Apify
+ * Run the Compass GMB scraper via Apify
  */
-async function runGmbScraper(
+async function runCompassScraper(
   apiToken: string,
   target: GMBTarget,
   maxResults: number = 50
@@ -278,20 +321,72 @@ async function runGmbScraper(
     scrapeTableReservationProvider: false,
   };
 
-  console.log(`🔍 Running GMB scraper for "${target.industry}" in "${locationQuery}"`);
+  console.log(`🔍 Running Compass GMB scraper for "${target.industry}" in "${locationQuery}"`);
 
-  const run = await client.actor(GMB_SCRAPER_ACTOR_ID).call(input, {
+  const run = await client.actor(COMPASS_SCRAPER_ACTOR_ID).call(input, {
     waitSecs: 300, // Wait up to 5 minutes
   });
 
   const { items } = await client.dataset(run.defaultDatasetId).listItems();
 
-  console.log(`✅ GMB scraper found ${items.length} results`);
+  console.log(`✅ Compass scraper found ${items.length} results`);
 
   return {
     runId: run.id,
     datasetId: run.defaultDatasetId,
     items: items as GmbScrapedItem[],
+  };
+}
+
+/**
+ * Run the XMiso GMB scraper via Apify
+ * This scraper returns pre-collected data with emails already included
+ */
+async function runXmisoScraper(
+  apiToken: string,
+  target: XmisoGMBTarget,
+  maxResults: number = 100
+): Promise<{ runId: string; datasetId: string; items: GmbScrapedItem[] }> {
+  const client = new ApifyClient({ token: apiToken });
+  
+  const input = buildXmisoInput(target, maxResults);
+  const searchTerm = target.keyword || target.category || 'business';
+
+  console.log(`🔍 Running XMiso GMB scraper for "${searchTerm}" in "${target.countryName}"`);
+  console.log(`   Input:`, JSON.stringify(input));
+
+  const run = await client.actor(XMISO_SCRAPER_ACTOR_ID).call(input, {
+    waitSecs: 300, // Wait up to 5 minutes
+  });
+
+  const { items } = await client.dataset(run.defaultDatasetId).listItems();
+
+  console.log(`✅ XMiso scraper found ${items.length} results`);
+
+  // Transform xmiso results to match GmbScrapedItem format
+  const transformedItems: GmbScrapedItem[] = items.map((item: unknown) => {
+    const i = item as Record<string, unknown>;
+    return {
+      title: (i.name || i.title || '') as string,
+      address: (i.address || i.full_address || '') as string,
+      phone: (i.phone || i.phone_number || '') as string,
+      website: (i.website || i.site || '') as string,
+      email: (i.email || '') as string,
+      city: (i.city || '') as string,
+      state: (i.state || '') as string,
+      country: (i.country || target.countryName || '') as string,
+      categoryName: (i.category || i.main_category || target.category || '') as string,
+      // Additional fields that might be present
+      rating: i.rating as number | undefined,
+      reviewsCount: i.reviews_count as number | undefined,
+      placeId: i.place_id as string | undefined,
+    };
+  });
+
+  return {
+    runId: run.id,
+    datasetId: run.defaultDatasetId,
+    items: transformedItems,
   };
 }
 

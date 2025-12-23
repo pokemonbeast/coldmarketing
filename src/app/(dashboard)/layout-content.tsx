@@ -80,28 +80,18 @@ export default function DashboardLayoutContent({
     const effectiveUserId = getEffectiveUserId() || user.id;
 
     // Fetch profile for the effective user
+    // Note: unread_emails_count column doesn't exist in database, so we exclude it from query
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
-      .select("id, email, full_name, subscription_status, subscription_plan_name, subscription_actions_limit, unread_emails_count")
+      .select("id, email, full_name, subscription_status, subscription_plan_name, subscription_actions_limit")
       .eq("id", effectiveUserId)
       .single();
 
     if (profileError) {
       console.error("Error fetching profile:", profileError);
-      // If the error is about missing column, try without it
-      if (profileError.message?.includes("unread_emails_count")) {
-        const { data: profileDataWithoutCount } = await supabase
-          .from("profiles")
-          .select("id, email, full_name, subscription_status, subscription_plan_name, subscription_actions_limit")
-          .eq("id", effectiveUserId)
-          .single();
-        
-        if (profileDataWithoutCount) {
-          setProfile({ ...profileDataWithoutCount, unread_emails_count: null });
-        }
-      }
     } else if (profileData) {
-      setProfile(profileData);
+      // Add unread_emails_count as null since column doesn't exist in database
+      setProfile({ ...profileData, unread_emails_count: null });
     }
 
     // Fetch current usage for the effective user
